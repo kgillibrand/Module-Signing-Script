@@ -116,10 +116,10 @@ def getInstalledKernels (packageManager: str) -> list:
     else if packageManager == 'pacman':
         output = subprocess.check_output (['pacman', '-Q', '|', 'grep', 'linux'])
         outputString = output.decode ('utf-8')
-        
-    print (outputString)
     
-    #Need to parse output
+    installedKernels = outputString.split ('\n')
+    
+    return installedKernels
     
 def compareKernels (kernel1: str, kernel2: str) -> int:
     '''
@@ -217,6 +217,20 @@ def main ():
     '''
         Main method for this script (void).
     '''
+    
+    packageManager = getPackageManager ()
+    
+    print (packageManager)
+    
+    installedKernels = getInstalledKernels ()
+    
+    print (installedKernels)
+    
+    newKernels = getNewKernels ()
+    
+    print (newKernels)
+    
+    signNewKernels (newKernels, privateKeyPath, publicKeyPath)
     
 if __name__ == '__main__'
     main ()
