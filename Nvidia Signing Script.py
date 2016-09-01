@@ -41,8 +41,8 @@ __host__ = 'https://github.com/Favorablestream'
 __copyright__ = 'Copyright 2016 Kieran Gillibrand'
 __credits__ = []
 __license__ = 'MIT License (LICENSE.txt)'
-__version__ = '0.1'
-__date__ = '31/08/2016'
+__version__ = '0.2'
+__date__ = '1/08/2016'
 __maintainer__ = 'Kieran Gillibrand'
 __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
@@ -52,14 +52,16 @@ import sys
 
 import subprocess
 
+import os
+
 #Code
-def handleError (errorMessage: str, exitCode: int)
-'''
-    Error handling function which displays a message and exits with an exit code (void).
+def handleError (errorMessage: str, exitCode: int):
+    '''
+        Error handling function which displays a message and exits with an exit code (void).
     
-    message (str): The message to display before exiting
-    exitCode (int): The code to exit with
-'''
+        message (str): The message to display before exiting
+        exitCode (int): The code to exit with
+    '''
     
     print (__title__ + ' Error: ' + errorMessage)
     print ()
@@ -80,20 +82,27 @@ def getPackageManager () -> str:
     #As is this will cause issues if multiple package managers are installed because only the first that is checked will be detected.
     
     #dpkg (Debian based systems)
-    if os.system ('dpkg --version') == 0:
+    if os.system ('dpkg --version > /dev/null 2>&1') == 0:
         return 'dpkg'
         
     #rpm (Red hat based systems)
-    else if os.system ('rpm --version') == 0:
+    elif os.system ('rpm --version > /dev/null 2>&1') == 0:
         return 'rpm'
         
     #pacman (Arch linux based systems)
-    else if os.system ('pacman --version') == 0:
+    elif os.system ('pacman --version > /dev/null 2>&1') == 0:
         return 'pacman'
         
     #None of the above, sorry obscure package managers
     else:
         handleError ('Package manager could not be determined', 1)
+    
+def getCurrentKernel () -> str:
+    '''
+        Returns the current kernel version (str)
+    '''
+    
+    return subprocess.check_output (['uname', '-r'])
     
 def getInstalledKernels (packageManager: str) -> list:
     '''
@@ -107,15 +116,15 @@ def getInstalledKernels (packageManager: str) -> list:
     
     if packageManager == 'dpkg':
         output = subprocess.check_output (['dpkg', '--list', '|', 'grep', 'linux-image'])
-        outputString = output.decode ('utf-8')
+        outputString = output.decode ('utf-8').rstrip ('\n')
         
-    else if packageManager == 'rpm':
+    elif packageManager == 'rpm':
         output = subprocess.check_output (['rpm', '-qa', 'kernel'])
-        outputString = output.decode ('utf-8')
+        outputString = output.decode ('utf-8').rstrip ('\n')
         
-    else if packageManager == 'pacman':
+    elif packageManager == 'pacman':
         output = subprocess.check_output (['pacman', '-Q', '|', 'grep', 'linux'])
-        outputString = output.decode ('utf-8')
+        outputString = output.decode ('utf-8').rstrip ('\n')
     
     installedKernels = outputString.split ('\n')
     
@@ -131,17 +140,20 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
         kernel2 (str): The second kernel
     '''
     
+    print ("kernel 1: %s" %kernel1)
+    print ('kernel 2: %s' %kernel2)
+    
     firstVersion1 = kernel1 [0:4]
     secondVersion1 = kernel1 [6:8]
     
     firstVersion2 = kernel2 [0:4]
     secondVersion2 = kernel2 [6:8]
     
-    print (firstVersion1)
-    print (secondVersion1)
+    print ('firstVersion1: %s' %firstVersion1)
+    print ('secondVersion1: %s' %secondVersion1)
     
-    print (firstVersion2)
-    print (secondVersion2)
+    print ('firstVersion2: %s' %firstVersion2)
+    print ('secondVersion2: %s' %secondVersion2)
     
     firstVersionNumber1 = int (firstVersion1)
     secondVersionNumber1 = int (secondVersion1)
@@ -152,14 +164,14 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
     if firstVersionNumber1 > firstVersionNumber2:
         return 1
     
-    else if firstVersionNumber1 < firstVersionNumber2:
+    elif firstVersionNumber1 < firstVersionNumber2:
         return -1
         
     else:
         if secondVersionNumber1 > secondVersionNumber2:
             return 1
             
-        else if secondVersionNumber1 < secondVersionNumber2:
+        elif secondVersionNumber1 < secondVersionNumber2:
             return -1
             
         else:
@@ -172,13 +184,11 @@ def getNewKernels (currentKernel: str, installedKernels: list) -> list:
         currentKernel (str): The currently booted kernel
         installedKernels (list <str>): A list of all the currently installed kernels
     '''
-    
-    currentKernel= subprocess.check_output (['uname', '-r'])
-    
+        
     for installedKernel in installedKernels:
         returnValue = compareKernels (installedKernel, currentKernel)
         
-        if returnValue == -1 || returnValue == 0:
+        if returnValue == -1 or returnValue == 0:
             installedKernels.remove (installedKernel)
     
     return installedKernels
@@ -220,17 +230,21 @@ def main ():
     
     packageManager = getPackageManager ()
     
-    print (packageManager)
+    print ('Package manager: %s' %packageManager)
     
-    installedKernels = getInstalledKernels ()
+    installedKernels = getInstalledKernels (packageManager)
     
-    print (installedKernels)
+    print ('Installed kernels: %s' %installedKernels)
     
-    newKernels = getNewKernels ()
+    currentKernel = getCurrentKernel ()
     
-    print (newKernels)
+    print ('Current kernel: %s' %currentKernel)
+    
+    newKernels = getNewKernels (currentKernel, installedKernels)
+    
+    print ('New kernels: %s' %newKernels)
     
     signNewKernels (newKernels, privateKeyPath, publicKeyPath)
     
-if __name__ == '__main__'
+if __name__ == '__main__':
     main ()
