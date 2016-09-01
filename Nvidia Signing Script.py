@@ -48,14 +48,49 @@ __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
 
 #Imports
+import sys
 
 #Code
+def handleError (errorMessage: str, exitCode: int)
+'''
+    Error handling function which displays a message and exits with an exit code.
+    
+    message (str): The message to display before exiting
+    exitCode (int): The code to exit with
+'''
+    
+    print (__title__ + ' Error: ' + errorMessage)
+    print ()
+    
+    sys.exit (exitCode)
 
 def getPackageManager () -> str:
     '''
         Returns the package manager for the current system or exits if it cannot be found.
         There is no standard way to find the package manager so this function simply tests if the following are installed: dpkg, dnf, yum, pacman
     '''
+    
+    #Each branch tries to run the package manager by checking it's version.
+    #The package manager itself (ex: rpm) is called instead of a front end (ex: dnf) so more systems are covered
+    #An argument like that should be one of the fastest for a package manager and returns an exit status of 0.
+    #Just running the package manager with no arguments usually returns 1 in my experience even if it is installed.
+    #If the package manager is not installed a status of 127 is usually returned.
+    
+    #dpkg (Debian based systems)
+    if os.system ('dpkg --version') == 0:
+        return 'dpkg'
+        
+    #rpm (Red hat based systems)
+    else if os.system ('rpm --version') == 0:
+        return 'dnf'
+        
+    #pacman (Arch linux based systems)
+    else if os.system ('pacman --version') == 0:
+        return 'pacman'
+        
+    #None of the above, sorry obscure package managers
+    else:
+        handleError ('Package manager could not be determined', 1)
     
 def getInstalledKernels (packageManager: str) -> list:
     '''
@@ -64,11 +99,14 @@ def getInstalledKernels (packageManager: str) -> list:
     
 def getNewKernels (currentKernel: str, installedKernels: list) -> list:
     '''
-        Returns a list of all kernels that are newer than the currently booted one
+        Returns a list of all kernels that are newer than the currently booted one or exits if no kernels are newer than the currently booted one.
         
         currentKernel (str): The currently booted kernel
         installedKernels (list): A list of all the currently installed kernels
     '''
+    
+    SIGN_PATH = '/usr/src/kernels/' + currentKernel + '/scripts/sign-file'
+    '''Path to the sign-file binary '''
     
 def signKernel (kernel: str):
     '''
