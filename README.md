@@ -31,14 +31,14 @@ Personal project in development.
 
 #Notes and Issues
 - There is no standard way to find the system package manager so I call 3 popular ones (rpm, dpkg, and pacman in that order) and check the exit status. This means the first one will be detected if multiple are installed and that other package managers will not be detected.
-- I still need to test this script and work on the string parsing. I'm certain it will break on non-rpm systems right now.
-- This script depends on uname -r output being fairly standard to get the current kernel.
+- String parsing is based on regex and better than it was but could still break.
+- I still need to test this script on other systems and test if it signs kernel properly. I may not have the time to test it on systems other than my own (Fedora).
 - I don't want to use external files to track state so the script will sign any kernel newer than the current one even if it has already been signed. This has no ill effects though and the script shouldn't be much of a resource hog. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned modules (as long as you still have secure boot enabled) so the script assumes your current kernel is fine.
 - There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed as far as I'm aware. Modifying package install scripts will just get replaced when the package updates and might mess with checksums. I will probably run this as a cron job maybe once a day or so.
 
 #Downloading and Usage
 
-1. Download nvidia-signing-script.pyc from the releases page or download a source code archive (includes the non-compiled script along with the License and Readme files). (I haven't made any releases yet because the script is still in development).
+1. Download nvidia-signing-script.pyc from the releases page or download a source code archive (includes the non-compiled script along with the License and Readme files). (I haven't made any releases yet because the script is still in development so just download the repository and run nvidia-signing-script.py).
 
 2. Make the script executable
 
