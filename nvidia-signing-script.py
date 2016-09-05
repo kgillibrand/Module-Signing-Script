@@ -138,15 +138,15 @@ def extractKernelVersionString (line: str) -> str:
         line (str): The line of output to extract the version string from
     '''
     
-    match = re.search ('\d+(\d+|\.|\-)+', line) #Match a digit then more digits, decimal points, or dashes
+    match = re.search ('\d+(\d+|\.|\-|[a-z]|[A-Z])+', line) #Match a digit then more digits, decimal points, or dashes
         
     if match == None:
         handleError ('Unable to extract version string for kernel line: %s' %line, 3)
             
     versionString = match.group (0)
         
-    #Sometimes . or - are used as a seperator and are picked up as the last character so remove that last character if it isn't a digit
-    if not versionString [-1:].isdigit ():
+    #Sometimes . or - are used as a seperator and are picked up as the last character so remove that last character if it isn't a digit or letter
+    if not (versionString [-1:].isdigit () or versionString [-1:].isalpha ()):
         versionString = versionString [:-1]
             
     return versionString
