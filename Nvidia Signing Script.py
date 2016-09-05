@@ -56,6 +56,10 @@ import subprocess
 
 import argparse
 
+import re
+
+import pkg_resources
+
 #Helper methods called by other methods
 def handleError (errorMessage: str, exitCode: int):
     '''
@@ -68,9 +72,10 @@ def handleError (errorMessage: str, exitCode: int):
         - 0: Success, normal exit code
         - 1: Package manager not found
         - 2: Unable to sign a kernel module
+        - 3: Unable to extract the kernel version string
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module']
+    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string']
     
     print (__title__ + ' Error: ' + errorMessage)
     print ()
@@ -93,7 +98,7 @@ def executeCommandWithOutput (commandName: str, commandArgs: list = []) -> str:
     commandArgs.insert (0, commandName) #check_output () expects the command and it's arguments in the same list
     
     try:
-        responseBytes = subprocess.check_output (args = commandArgs)
+        responseBytes = subprocess.check_output (commandArgs)
         
     #An exception is raised if the command does not exist, pass it to the caller
     except (OSError) as executeError:
@@ -124,6 +129,48 @@ def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> i
         exitStatus = 127
         
     return exitStatus
+
+def extractKernelVersionString (line: str) -> str:
+    '''
+        Extracts the kernel version (Ex: 4.7.2-201) from a line of output (str)
+        Be sure to strip trailing newline with rstrip () if you are splitting multiline output on newlines so that you don't pass an empty line.
+    
+        line (str): The line of output to extract the version string from
+    '''
+    
+    match = re.search ('\d+(\d+|\.|\-)+', line) #Match a digit then more digits, decimal points, or dashes
+        
+    if match == None:
+        handleError ('Unable to extract version string for kernel line: %s' %line, 3)
+            
+    versionString = match.group (0)
+        
+    #Sometimes . or - are used as a seperator and are picked up as the last character so remove that last character if it isn't a digit
+    if not versionString [-1:].isdigit ():
+        versionString = versionString [:-1]
+            
+    return versionString
+    
+def compareKernels (kernel1: str, kernel2: str) -> int:
+    '''
+        Compares two kernel version strings (ex: 4.7.2-200 vs 4.5.5).
+        Returns 1 if kernel1 is newer (greater), -1 if the kernel2 is newer, and 0 if they are equal (int).
+        
+        kernel1 (str): The first kernel version string
+        kernel2 (str): The second kernel version string
+    '''
+
+    kernel1Version = pkg_resources.parse_version (kernel1)
+    kernel2Version = pkg_resources.parse_version (kernel2)
+    
+    if kernel1Version > kernel2Version:
+        return 1
+        
+    elif kernel1Version < kernel2Version:
+        return -1
+        
+    else:
+        return 0
     
 def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     '''
@@ -147,49 +194,12 @@ def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     for module in MODULE_NAMES:
         if executeCommandWithExitStatus (SIGN_BINARY_PATH, ['sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
             handleError ('Error signing kernel module: %s' %module, 2)
-    
-    
-def compareKernels (kernel1: str, kernel2: str) -> int:
-    '''
-        Compares two kernel version strings (ex: 4.7.2-200 vs 4.5.5).
-        Returns 1 if the first is newer (greater), -1 if the second is newer, and 0 if they are equal (int).
-        Compares the first version strings (ex: 4.7.2 vs 4.5.5) and the second (ex: 200 vs 201) if the first two are equal.
         
-        kernel1 (str): The first kernel
-        kernel2 (str): The second kernel
-    '''
-    
-    #Slice version numbers of kernels and convert the first and second part into an integer. ex: 4.7.2-201 = 472 and 201
-    kernel1FirstVersion = int (kernel1 [0:5].replace ('.', ''))
-    kernel1SecondVersion = int (kernel1 [6:9].replace ('.', ''))
-    
-    kernel2FirstVersion = int (kernel2 [0:5].replace ('.', ''))
-    kernel2SecondVersion = int (kernel2 [6:9].replace ('.', ''))
-    
-    #Compare first versions
-    if kernel1FirstVersion > kernel2FirstVersion:
-        return 1
-    
-    elif kernel1FirstVersion < kernel2FirstVersion:
-        return -1
-        
-    #If they are equal compare the second versions
-    else:
-        if kernel1SecondVersion > kernel2SecondVersion:
-            return 1
-            
-        elif kernel1SecondVersion < kernel2SecondVersion:
-            return -1
-            
-        #Finally they must be equal
-        else:
-            return 0
-             
 #Core methods called by main ()
 def getPackageManager () -> str:
     '''
         Returns the package manager for the current system (str)
-        There is no standard way to find the package manager so this function simply tests if the following are installed: dpkg, dnf, yum, pacman
+        There is no standard way to find the package manager so this function simply tests if the following are installed: rpm, dpkg, pacman
     '''
     
     #Each branch tries to run the package manager by checking it's version.
@@ -220,7 +230,11 @@ def getCurrentKernel () -> str:
         Returns the current kernel version (str)
     '''
     
-    return executeCommandWithOutput ('uname', ['-r'])
+    unameOutput = executeCommandWithOutput ('uname', ['-r'])
+    
+    unameOutput.rstrip () #Single line output still contains trailing newline
+    
+    return extractKernelVersionString (unameOutput)
             
 def getInstalledKernels (packageManager: str) -> list:
     '''
@@ -238,12 +252,19 @@ def getInstalledKernels (packageManager: str) -> list:
         
     elif packageManager == 'pacman':
         output = executeCommandWithOutput ('pacman', ['-Q', '|', 'grep', 'linux'])
-        
-    #Remove kernel- from the beginning of kernel packages and then strip trailing newline
-    output = output.replace ('kernel-', '')
+
     output = output.rstrip ()
     
-    return output.split ('\n')
+    outputLines = output.split ('\n')
+    
+    kernelVersions = []
+    
+    for line in outputLines:
+        versionString = extractKernelVersionString (line)
+            
+        kernelVersions.append (versionString)
+        
+    return kernelVersions
         
 def getNewKernels (currentKernel: str, installedKernels: list) -> list:
     '''
@@ -256,10 +277,8 @@ def getNewKernels (currentKernel: str, installedKernels: list) -> list:
     newKernels = []
     
     #Compare kernels and add them to the newKernels list if they are newer than the current 
-    for installedKernel in installedKernels:
-        returnValue = compareKernels (installedKernel, currentKernel)
-        
-        if returnValue == 1:
+    for installedKernel in installedKernels:        
+        if compareKernels (installedKernel, currentKernel) == 1:
             newKernels.append (installedKernel)
     
     return newKernels
@@ -294,23 +313,23 @@ def main ():
     
     packageManager = getPackageManager ()
     
-    print ('Package Manager: %s' %packageManager)
+    print ('DEBUG: Package Manager: %s' %packageManager)
     
     currentKernel = getCurrentKernel ()
     
-    print ('Current kernel: %s' %currentKernel)
+    print ('DEBUG: Current kernel: %s' %currentKernel)
     
     installedKernels = getInstalledKernels (packageManager)
     
-    print ('Installed kernels: %s' %installedKernels)
+    print ('DEBUG: Installed kernels: %s' %installedKernels)
     
     newKernels = getNewKernels (currentKernel, installedKernels)
     
-    print ('New kernels: %s' %newKernels)
+    print ('DEBUG: New kernels: %s' %newKernels)
     
     signNewKernels (newKernels, args.privateKeyFile, args.publicKeyFile)
     
-    print ('New kernels should be signed')
+    print ('DEBUG: New kernels should now be signed')
     
 if __name__ == '__main__':
     main ()
