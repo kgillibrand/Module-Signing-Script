@@ -43,24 +43,27 @@ __host__ = 'https://github.com/Favorablestream'
 __copyright__ = 'Copyright 2016 Kieran Gillibrand'
 __credits__ = []
 __license__ = 'MIT License (LICENSE.txt)'
-__version__ = '0.8'
-__date__ = '4/09/2016'
+__version__ = '1.0'
+__date__ = '5/09/2016'
 __maintainer__ = 'Kieran Gillibrand'
 __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
 
 #Imports
-import sys
+import sys #exit ()
 
-import subprocess
+import subprocess #check_output (), call ()
 
-import argparse
+import argparse #ArgumentParser ()
 
-import re
+import re #search () (Regular exppressions)
 
-import pkg_resources
+import pkg_resources #parse_version (Version comparisions)
 
-import os
+import os #getuid ()
+
+DEBUG = False
+'''Global flag for debuging print statements, set by -debug/--debug'''
 
 #Helper methods called by other methods
 def handleError (errorMessage: str, exitCode: int):
@@ -162,17 +165,42 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
         kernel2 (str): The second kernel version string
     '''
 
+    if DEBUG:
+        print ('---------------------------------------------')
+        print ('Kernel version comparison')
+        print ('Kernel version 1: %s' %kernel1)
+        print ('Kernel version 2: %s' %kernel2)
+        print ()
+    
     kernel1Version = pkg_resources.parse_version (kernel1)
     kernel2Version = pkg_resources.parse_version (kernel2)
     
+    comparisonValue = 0
+    
     if kernel1Version > kernel2Version:
-        return 1
+        comparisonValue = 1
+        
+        if DEBUG:
+            print ('Kernel version 1 evaluated as newer')
         
     elif kernel1Version < kernel2Version:
-        return -1
+        comparisonValue = -1
+        
+        if DEBUG:
+            print ('Kernel version 2 evaluated as newer')
         
     else:
-        return 0
+        comparisonValue = 0
+        
+        if DEBUG:
+            print ('Kernel versions evaluated as equal')
+        
+    if DEBUG:
+        print ('Return value: %d' %comparisonValue)
+        print ('---------------------------------------------')
+        print ()
+    
+    return comparisonValue
     
 def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     '''
@@ -192,18 +220,28 @@ def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     MODULE_NAMES = ['nvidia-drm.ko', 'nvidia.ko', 'nvidia-modeset.ko', 'nvidia-uvm.ko']
     '''Names of the kernel modules we will sign'''
     
+    if DEBUG:
+        print ('sign-file binary path: %s' %SIGN_BINARY_PATH)
+        print ('Kernel modules path: %s' %MODULES_PATH)
+        print ('Kernel module names: %s' %MODULE_NAMES)
+        print ()
+        
     #Print if the user is not root (uid 0)
     if os.getuid () != 0:
         print ('%s: Signing kernel modules must be done as root. You may be prompted for your password:' %__title__)
-        print ()
     
     #Sign all the modules in our list or call handleError if the exit status is not 0
     #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for the root password once)
     #If this script is set up as a root cron job or the entire script is run as root then the sudo call has no effect and sign-file runs normally
     for module in MODULE_NAMES:
+        if DEBUG:
+            print ('Signing kernel module: %s' %module)
+            
         if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
             handleError ('Error signing kernel module: %s (Did you type your password correctly?)' %module, 2)
         
+    print ()
+    
 #Core methods called by main ()
 def getPackageManager () -> str:
     '''
@@ -318,7 +356,11 @@ def main ():
     parser = argparse.ArgumentParser (description = 'Nvidia Signing Script: A small script which signs Nvidia\'s kernel modules for any installed kernel newer than the currently booted one.')
     parser.add_argument ('privateKeyFile', help = 'Your private key file for signing the kernel modules (see README for details)')
     parser.add_argument ('publicKeyFile', help = 'Your public key file for signing the kernel modules (see README for details)')
+    parser.add_argument ('-debug', '--debug', help = 'Display extra print statements for debugging', action = 'store_true')
     args = parser.parse_args ()
+    
+    global DEBUG 
+    DEBUG = args.debug
     
     packageManager = getPackageManager ()
     
@@ -343,7 +385,7 @@ def main ():
         
         signNewKernels (newKernels, args.privateKeyFile, args.publicKeyFile)
     
-        print ('%s: New kernels have been signed' %__title__)
+        print ('%s: Kernel modules for new kernels have been signed' %__title__)
         print ()
     
     else:
