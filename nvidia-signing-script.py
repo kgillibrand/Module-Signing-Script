@@ -60,6 +60,8 @@ import re
 
 import pkg_resources
 
+import os
+
 #Helper methods called by other methods
 def handleError (errorMessage: str, exitCode: int):
     '''
@@ -138,7 +140,7 @@ def extractKernelVersionString (line: str) -> str:
         line (str): The line of output to extract the version string from
     '''
     
-    match = re.search ('\d+(\d+|\.|\-|[a-z]|[A-Z])*', line) #Match a digit then more digits, decimal points, dashes, or letters
+    match = re.search ('\d+(\d+|\.|\-|\_|[a-z]|[A-Z])*', line) #Match a digit then more digits, decimal points, dashes, or letters
         
     if match == None:
         handleError ('Unable to extract version string for input line: %s' %line, 3)
@@ -190,10 +192,17 @@ def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     MODULE_NAMES = ['nvidia-drm.ko', 'nvidia.ko', 'nvidia-modeset.ko', 'nvidia-uvm.ko']
     '''Names of the kernel modules we will sign'''
     
-    #Sign all the modules in our list or call handleError if the exit status is not 0 at any point
+    #Print if the user is not root (uid 0)
+    if os.getuid () != 0:
+        print ('%s: Signing kernel modules must be done as root. You may be prompted for your password:' %__title__)
+        print ()
+    
+    #Sign all the modules in our list or call handleError if the exit status is not 0
+    #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for the root password once)
+    #If this script is set up as a root cron job or the entire script is run as root then the sudo call has no effect and sign-file runs normally
     for module in MODULE_NAMES:
-        if executeCommandWithExitStatus (SIGN_BINARY_PATH, ['sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
-            handleError ('Error signing kernel module: %s' %module, 2)
+        if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
+            handleError ('Error signing kernel module: %s (Did you type your password correctly?)' %module, 2)
         
 #Core methods called by main ()
 def getPackageManager () -> str:
@@ -314,26 +323,32 @@ def main ():
     packageManager = getPackageManager ()
     
     print ('%s: Found package manager: %s' %(__title__, packageManager))
+    print ()
     
     currentKernel = getCurrentKernel ()
     
     print ('%s: Found current kernel: %s' %(__title__, currentKernel))
+    print ()
     
     installedKernels = getInstalledKernels (packageManager)
     
     print ('%s: Found installed kernels: %s' %(__title__, installedKernels))
+    print ()
     
     newKernels = getNewKernels (currentKernel, installedKernels)
     
     if len (newKernels) > 0:
         print ('%s: Found new kernels: %s' %(__title__, newKernels))
+        print ()
         
         signNewKernels (newKernels, args.privateKeyFile, args.publicKeyFile)
     
         print ('%s: New kernels have been signed' %__title__)
+        print ()
     
     else:
-        print ('%s: No new kernels found' %__title__) 
+        print ('%s: No new kernels found' %__title__)
+        print ()
     
 if __name__ == '__main__':
     main ()
