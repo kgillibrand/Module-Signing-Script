@@ -15,13 +15,12 @@ Personal project now released.
 - -debug/--debug: Display extra information for debugging
 
 #Preparation
-- See: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html and my gist with some updates: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49 for instructions to create key files or to try signing the modules yourself.
+- See: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html for instructions to create key files and my gist with some updates: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49 if you want to try signing the modules yourself.
 
 #Dependancies
 - A Python 3 interpreter
 - A Linux distro with the rpm, dpkg, or pacman package manager.
 - Nvidia akmod drivers installed with their dependancies.
-- I believe kernel-devel is required for the sign-file binary that is called but kernel-devel is a dependancy for akmod drivers as far as I recall.
 
 #Script Operation
 - Find the system package manager
@@ -36,7 +35,7 @@ Personal project now released.
 - String parsing is based on regex and better than it was but could still break.
 - This script depends on the module directories having the same name as the extracted kernel version strings.
 - I haven't had the time to boot any virtual machines and test other configurations (mine is Fedora, rpm). I also haven't installed any new kernel versions lately to test if the signing process works on a new one. Signing an existing kernel (already signed) works fine for me though.
-- I don't want to use external files to track state so the script will sign any kernel newer than the current one even if it has already been signed. This has no ill effects though and the script shouldn't be much of a resource hog. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned modules (as long as you still have secure boot enabled) so the script assumes your current kernel is signed.
+- I don't want to use external files to track state so the script will sign modules for any kernel newer than the current one even if they have already been signed. This has no ill effects on the modules though. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned Nvidia modules (as long as you still have secure boot enabled) so the script assumes your current kernel modules are signed.
 - There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed as far as I'm aware. Modifying package install scripts will just get replaced when the package updates and might mess with checksums. I will probably run this as a cron job maybe once a day or so.
 
 #Downloading and Usage
@@ -60,7 +59,7 @@ executeCommandWithOutput ():
 signKernel () (KERNEL_VERSION here refers to the kernel being signed not the booted one. It is a method parameter in signKernel () called kernel)
 - SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION**/scripts/sign-file
 - MODULES_PATH: Path to the Nivida kernel modules. Default: /usr/lib/modules/**KERNEL_VERSION**/extra/nvidia/
-- MODULES_NAMES: A list of the Nivia modules to sign. Default: [nvidia-drm.ko, nvidia.ko, nvidia-modeset.ko, nvidia-uvm.ko]
+- MODULES_NAMES: A list of the Nivia modules to sign. Default: nvidia-drm.ko, nvidia.ko, nvidia-modeset.ko, nvidia-uvm.ko
 
 #License
 MIT License
