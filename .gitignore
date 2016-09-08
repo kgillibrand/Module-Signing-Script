@@ -1,2 +1,7 @@
+#Python binaries
 *.pyc
 *.pyo
+
+#Signing keys
+*.der
+*.priv
