@@ -91,7 +91,7 @@ def handleError (errorMessage: str, exitCode: int):
 
 def executeCommandWithOutput (commandName: str, commandArgs: list = []) -> str:
     '''
-        Fetches a process' (terminal command usually for this project) output and decodes it as a utf-8 string (by default) (str)
+        Fetches a process output and decodes it as a utf-8 string (by default) (str)
         
         commandName (str): The name of the command to run
         commandArgs (list <string>) (optional): The arguments to supply to the command (-r, etc)
@@ -113,15 +113,10 @@ def executeCommandWithOutput (commandName: str, commandArgs: list = []) -> str:
     
 def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> int:
     '''
-        Run a command without fetching the output and piping all output streams to /dev/null and return the program exit status (int)
+        Run a command without fetching the output while piping all output streams to /dev/null then return the program exit status (int)
         
         commandName (str): The name of the command to run
         commandArgs (list <string>) (optional): The arguments to supply to the command (-r, etc)
-        
-        Command exit codes (that I look for)
-        - 0: Successs
-        - 127: Command not found (probably)
-        - Anything else: Error
     '''    
     
     commandArgs.insert (0, commandName) #call () expects the command and it's arguments in the same list
@@ -135,18 +130,18 @@ def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> i
         
     return exitStatus
 
-def extractKernelVersionString (line: str) -> str:
+def extractKernelVersionString (inputLine: str) -> str:
     '''
-        Extracts the kernel version (Ex: 4.7.2-201) from a line of output (str)
+        Extracts the kernel version (Ex: 4.7.2-201.fc24.x86_64) from a line text (str)
         Be sure to strip trailing newlines with rstrip () if you are splitting multiline output on newlines so that you don't pass an empty line.
     
-        line (str): The line of output to extract the version string from
+        inputLine (str): The line of output to extract the version string from
     '''
     
-    match = re.search ('\d+(\d+|\.|\-|\_|[a-z]|[A-Z])*', line) #Match a digit then more digits, decimal points, dashes, or letters
+    match = re.search ('\d+(\d+|\.|\-|\_|[a-z]|[A-Z])*', inputLine) #Match a digit then more digits, decimal points, dashes, or letters
         
     if match == None:
-        handleError ('Unable to extract version string for input line: %s' %line, 3)
+        handleError ('Unable to extract version string for input line: %s' %inputLine, 3)
             
     versionString = match.group (0)
         
@@ -189,9 +184,7 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
         if DEBUG:
             print ('Kernel version 2 evaluated as newer')
         
-    else:
-        comparisonValue = 0
-        
+    else:        
         if DEBUG:
             print ('Kernel versions evaluated as equal')
         
@@ -231,14 +224,14 @@ def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
         print ('%s: Signing kernel modules must be done as root. You may be prompted for your password:' %__title__)
     
     #Sign all the modules in our list or call handleError if the exit status is not 0
-    #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for the root password once)
-    #If this script is set up as a root cron job or the entire script is run as root then the sudo call has no effect and sign-file runs normally
+    #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
+    #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
     for module in MODULE_NAMES:
         if DEBUG:
             print ('Signing kernel module: %s' %module)
             
         if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
-            handleError ('Error signing kernel module: %s (Did you type your password correctly?)' %module, 2)
+            handleError ('Error signing kernel module: %s (Check your password for sudo and/or your keyfiles)' %module, 2)
         
     print ()
     
