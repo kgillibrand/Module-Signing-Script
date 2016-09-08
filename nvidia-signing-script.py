@@ -153,7 +153,7 @@ def extractKernelVersionString (inputLine: str) -> str:
     
 def compareKernels (kernel1: str, kernel2: str) -> int:
     '''
-        Compares two kernel version strings (ex: 4.7.2-200 vs 4.5.5).
+        Compares two kernel version strings (ex: 4.7.2-200.fc24.x86_64 vs 4.5.5.fc24.x86_64).
         Returns 1 if kernel1 is newer (greater), -1 if kernel2 is newer, and 0 if they are equal (int).
         
         kernel1 (str): The first kernel version string
