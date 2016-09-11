@@ -11,10 +11,10 @@ This script signs the kernel modules with your personal key. Be sure to keep you
 This is a personal project that's now released.
 
 #Usage
+- modulesFile: Mandatory first positional argument. JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
+- privateKeyFile: Mandatory second positional argument. Your private key file for signing the modules.
+- publicKeyFile: Mandatory third positional argument. Your public key file for signing the modules.
 - -h: Show help.
-- modulesFile: JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
-- privateKeyFile: Mandatory first positional argument. Your private key file for signing the modules.
-- publicKeyFile: Mandatory second positional argument. Your public key file for signing the modules.
 - -debug/--debug: Display extra information for debugging
 
 #Preparation
@@ -51,7 +51,7 @@ For example my modules for Nvidia are located in: /usr/lib/modules/4.7.2-201.fc2
 - moduleFiles: List of the module files to sign
 
 Notes
-- Make sure your format for this file is correct. Try: http://jsonlint.com
+- Make sure your format for this file is correct. Try: http://jsonlint.com and check this readme
 - You can have more or less entries than me but make sure you have at least one section and at least one module file.
 - Make sure you use the same key names that I do.
 
