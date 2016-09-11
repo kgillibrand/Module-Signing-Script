@@ -64,6 +64,8 @@ import os #getuid ()
 
 import json #loads () (JSON parsing)
 
+import contextlib #contextmanager (Changing working directory)
+
 DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
@@ -83,9 +85,10 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
         - 3: Unable to extract the kernel version string
         - 4: Cannot open modules JSON file
         - 5: Modules JSON content is malformed
+        - 6: Cannot access modules directory
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed']
+    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory']
     
     print (__title__ + ': Error: ' + errorMessage)
     print ()
@@ -226,6 +229,24 @@ def getModuleEntries (modulesPath: str) -> list:
         handleError (message = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
         
     return modules ["moduleEntries"]
+
+@contextlib.contextmanager
+def changeWorkingDirectory (newDirectory: str):
+    '''
+        Generator method to change directory in an exception safe way (always returns to the original directory) (generator)
+        Borrowed from Stack Overflow after some research on how it works
+        
+        newDirectory (str): The directory to switch to
+    '''
+    previousDirectory = os.getcwd ()
+    
+    os.chdir (os.path.expanduser (newDirectory))
+    
+    try:
+        yield #Return until we're done with the generator
+        
+    finally:
+        os.chdir (previousDirectory) #Run once we're done
         
 def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
     '''
@@ -251,25 +272,30 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
     for moduleEntry in moduleEntries:
         modulesPath = BASE_MODULES_PATH + moduleEntry ['directory']
         
-        moduleFiles = moduleEntry ['moduleFiles']
-        
-        if DEBUG:
-            print ('Kernel modules path: %s' %modulesPath)
-            print ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
-            print ()
-    
-        #Sign all the modules in the list of modules and call handleError if the exit status is not 0
-        #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
-        #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
-        for moduleFile in moduleEntry ['moduleFiles']:
-            if DEBUG:
-                print ('Signing kernel module: %s' %moduleFile)
+        try:
+            with changeWorkingDirectory (modulesPath):
+                moduleFiles = moduleEntry ['moduleFiles']
+                                
+                if DEBUG:
+                    print ('Switched to modules directory: %s' %modulesPath)
+                    print ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
+                    print ()
+            
+                #Sign all the modules in the list of modules and call handleError if the exit status is not 0
+                #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
+                #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
+                for moduleFile in moduleFiles:
+                    if DEBUG:
+                        print ('Signing kernel module: %s' %moduleFile)
 
-            if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, modulesPath + moduleFile]) != 0:
-                handleError ('Error signing kernel module: %s (Check your password for sudo your keyfiles, or the module entries in your json file)' %moduleFile, 2)
+                    if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile]) != 0:
+                        handleError ('Error signing kernel module: %s (Check your password for sudo, your keyfiles, or the module entries in your json file)' %moduleFile, 2)
+                
+                if DEBUG:
+                    print ()
         
-        if DEBUG:
-            print ()
+        except (FileNotFoundError) as directoryError:
+            handleError (errorMessage = 'Could not move to modules directory: %s' %modulesPath, exception = directoryError, exitCode = 6)
             
 #Core methods called by main ()
 def getPackageManager () -> str:
@@ -397,8 +423,8 @@ def main ():
     print ('%s: Found package manager: %s' %(__title__, packageManager))
     print ()
     
-    currentKernel = getCurrentKernel ()
-    
+    #currentKernel = getCurrentKernel ()
+    currentKernel = '4.7.2-200.fc24.x86_64'
     print ('%s: Found current kernel: %s' %(__title__, currentKernel))
     print ()
     
