@@ -75,7 +75,7 @@ Notes
 - This script depends on the module directories having the same name as the extracted kernel version strings.
 - I haven't had the time to boot any virtual machines and test other configurations (mine is Fedora, rpm). I also haven't installed any new kernel versions lately to test if the signing process works on a new one. Signing an existing kernel (already signed) works fine for me though.
 - I don't want to use external files to track state so the script will sign modules for any kernel newer than the current one even if they have already been signed. This has no ill effects on the modules though. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned Nvidia modules (as long as you still have secure boot enabled) so the script assumes your current kernel modules are signed.
-- There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed as far as I'm aware. Modifying package install scripts will just get replaced when the package updates and might mess with checksums. I will probably run this as a cron job maybe once a day or so.
+- There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed without building packages for various package managers.
 
 #Downloading and Usage
 
