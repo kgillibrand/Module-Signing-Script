@@ -1,4 +1,4 @@
-#Nvidia Signing Script
+#Modules Signing Script
 
 Copyright Kieran Gillibrand 2016 (MIT License)
 
@@ -6,7 +6,9 @@ Small Python script which self signs kernel modules for any kernels newer than t
 
 You will only need this if you wish to use unsigned kernel modules (Nvidia and VirtualBox in my case) and keep secure boot enabled. Most people I've seen online just disable secure boot but I don't think that's a brilliant soloution.
 
-Personal project now released.
+This script signs the kernel modules with your personal key. Be sure to keep your key files safe because anyone with these files can sign any module or execute any arbitrary code on your system once you have your key enrolled in your system.
+
+This is a personal project that's now released.
 
 #Usage
 - -h: Show help.
@@ -17,6 +19,7 @@ Personal project now released.
 
 #Preparation
 - See this guide for instructions to create key files and enroll your private key: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html
+(refer to the sections on creating keyfiles with openssl and then enrolling them with mokutil)
 - See my gist with some updates to the guide if you want to try signing any modules manually: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49
 - Create your modules JSON file using the format below and provide it and your key files as command line parameters to the script.
 
@@ -42,18 +45,20 @@ JSON Modules File Layout:
 
 Parameters
 - name: Section name for the collection of modules
-- directory: The directory where the modules are contained. This gets appended to: /usr/lib/modules/**CURRENT_KERNEL**/. For example my modules for Nvidia in the example above are located in: /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/nvidia
+- directory: The directory where the modules are contained. 
+This gets appended to: /usr/lib/modules/**CURRENT_KERNEL**/
+For example my modules for Nvidia are located in: /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/nvidia
 - moduleFiles: List of the module files to sign
 
 Notes
 - Make sure your format for this file is correct. Try: http://jsonlint.com
-- You can have less or more sections than me but make sure you have at least one.
-- Make sure you use the same paramater names that I do.
+- You can have more or less entries than me but make sure you have at least one section and at least one module file.
+- Make sure you use the same key names that I do.
 
 #Dependancies
 - A Python 3 interpreter
 - A Linux distro with the rpm, dpkg, or pacman package manager.
-- Nvidia akmod drivers installed with their dependancies.
+- The kernel-devel package (or equivalent for your distro, linux-headers-generic, etc) which provides the sign-file binary
 
 #Script Operation
 - Find the system package manager
@@ -74,7 +79,7 @@ Notes
 
 #Downloading and Usage
 
-1. Download nvidia-signing-script.pyc from the releases page or download a source code archive (includes the non-compiled script along with the License and Readme files).
+1. Download modules-signing-script.pyc from the releases page or download a source code archive (includes the non-compiled script along with the License and Readme files).
 
 2. Make the script executable
 
