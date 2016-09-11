@@ -29,22 +29,22 @@
 '''
     Nvidia Signing Script
     
-    A small script which signs Nvidia's kernel modules for any installed kernel newer than the currently booted one.
+    A small script which signs kernel modules provided by a JSON file for any installed kernel newer than the currently booted one.
     
-    Will probably be run as a cron job. As of now I don't know how to run this when a new kernel is installed. Especially in a way independent of the package manager and package format.
+    Will probably be run as a cron job. As of now I don't know how to trigger this when a new kernel is installed. Especially in a way independent of the package manager and package format.
     
     Inspired by this guide: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html and by my gist which corrects some out of date things: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49
 '''
 
 #Metadata
-__title__ = 'Nvidia Signing Script'
+__title__ = 'Module Signing Script'
 __author__ = 'Kieran Gillibrand'
-__host__ = 'https://github.com/Favorablestream'
+__host__ = 'https://github.com/Favorablestream/Module-Signing-Script'
 __copyright__ = 'Copyright 2016 Kieran Gillibrand'
 __credits__ = []
 __license__ = 'MIT License (LICENSE.txt)'
-__version__ = '1.0'
-__date__ = '5/09/2016'
+__version__ = '1.1'
+__date__ = '10/09/2016'
 __maintainer__ = 'Kieran Gillibrand'
 __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
@@ -62,30 +62,39 @@ import pkg_resources #parse_version (Version comparisions)
 
 import os #getuid ()
 
+import json #loads () (JSON parsing)
+
 DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
 #Helper methods called by other methods
-def handleError (errorMessage: str, exitCode: int):
+def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
     '''
-        Error handling function which displays a message and exits with an exit code (void).
+        Error handling function which displays a message, prints an exception (if provided), and exits with an exit code (void).
     
         message (str): The message to display before exiting
         exitCode (int): The code to exit with
+        exception (Exception) (optional): The exception to print
         
         Script Exit codes
         - 0: Success, normal exit code
         - 1: Package manager not found
         - 2: Unable to sign a kernel module
         - 3: Unable to extract the kernel version string
+        - 4: Cannot open modules JSON file
+        - 5: Modules JSON file is malformed
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string']
+    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON file is malformed']
     
     print (__title__ + ': Error: ' + errorMessage)
     print ()
     
-    print ('Exiting with exit code: %s, %s' %(exitCode, exitCodes [exitCode]))
+    if exception != None:
+        print (str (exception))
+        print ()
+        
+    print ('Exiting with exit code: %d, %s' %(exitCode, exitCodes [exitCode]))
     
     sys.exit (exitCode)
 
@@ -195,7 +204,30 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
     
     return comparisonValue
     
-def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
+def getModuleEntries (modulesPath: str) -> dict:
+    '''
+        Parses the provided JSON file to get information for the modules to sign (dict)
+        
+        modulesPath (str): The path to the modules JSON file
+    '''
+    
+    try:
+        with open (modulesPath) as modulesFile:
+            if DEBUG:
+                print ('Using modules file: \'%s\'' %modulesPath)
+                print ()
+                    
+            modules = json.loads (modulesFile.read ())
+
+    except (IOError, OSError) as fileError:
+        handleError (message = 'Modules file: \'%s\' does not exist or cannot be opened' %modulesPath, exception = fileError, exitCode = 4)
+        
+    except (ValueError) as jsonError:
+        handleError (message = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
+        
+    return modules
+        
+def signKernel (kernel: str, modules: dict, privateKeyPath: str, publicKeyPath: str):
     '''
         Signs the nvidia kernel modules for a kernel (void).
         
@@ -207,34 +239,38 @@ def signKernel (kernel: str, privateKeyPath: str, publicKeyPath: str):
     SIGN_BINARY_PATH = '/usr/src/kernels/' + kernel + '/scripts/sign-file'
     '''Path to the sign-file binary used to sign the kernel modules'''
     
-    MODULES_PATH = '/usr/lib/modules/' + kernel + '/extra/nvidia/'
-    '''Path to the kernel modules'''
-    
-    MODULE_NAMES = ['nvidia-drm.ko', 'nvidia.ko', 'nvidia-modeset.ko', 'nvidia-uvm.ko']
-    '''Names of the kernel modules we will sign'''
-    
-    if DEBUG:
-        print ('sign-file binary path: %s' %SIGN_BINARY_PATH)
-        print ('Kernel modules path: %s' %MODULES_PATH)
-        print ('Kernel module names: %s' %MODULE_NAMES)
-        print ()
+    BASE_MODULES_PATH = '/usr/lib/modules/' + kernel + '/'
+    '''Path to modules before the directory provided by the JSON file is appended'''
         
     #Print if the user is not root (uid 0)
     if os.getuid () != 0:
         print ('%s: Signing kernel modules must be done as root. You may be prompted for your password:' %__title__)
-    
-    #Sign all the modules in our list or call handleError if the exit status is not 0
-    #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
-    #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
-    for module in MODULE_NAMES:
-        if DEBUG:
-            print ('Signing kernel module: %s' %module)
-            
-        if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, MODULES_PATH + module]) != 0:
-            handleError ('Error signing kernel module: %s (Check your password for sudo and/or your keyfiles)' %module, 2)
+        print ()
         
-    print ()
+    #Sign the modules for each entry in the JSON file
+    for moduleEntry in modules ['moduleEntries']:
+        modulesPath = BASE_MODULES_PATH + moduleEntry ['path']
+        
+        moduleFiles = moduleEntry ['moduleFiles']
+        
+        if DEBUG:
+            print ('Kernel modules path: %s' %modulesPath)
+            print ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
+            print ()
     
+        #Sign all the modules in the list of modules and call handleError if the exit status is not 0
+        #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
+        #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
+        for moduleFile in moduleEntry ['moduleFiles']:
+            if DEBUG:
+                print ('Signing kernel module: %s' %moduleFile)
+
+            if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, modulesPath + moduleFile]) != 0:
+                handleError ('Error signing kernel module: %s (Check your password for sudo your keyfiles, or the module entries in your json file)' %moduleFile, 2)
+        
+        if DEBUG:
+            print ()
+            
 #Core methods called by main ()
 def getPackageManager () -> str:
     '''
@@ -323,7 +359,7 @@ def getNewKernels (currentKernel: str, installedKernels: list) -> list:
     
     return newKernels
     
-def signNewKernels (newKernels: list, privateKeyPath: str, publicKeyPath: str):
+def signNewKernels (newKernels: list, moduleEntries: dict, privateKeyPath: str, publicKeyPath: str):
     '''
         Signs the nvidia kernel modules for every new kernel by calling signKernel () on each (void).
         
@@ -333,7 +369,7 @@ def signNewKernels (newKernels: list, privateKeyPath: str, publicKeyPath: str):
     '''
     
     for newKernel in newKernels:
-        signKernel (newKernel, privateKeyPath, publicKeyPath)
+        signKernel (newKernel, moduleEntries, privateKeyPath, publicKeyPath)
     
 def main ():
     '''
@@ -347,6 +383,7 @@ def main ():
     print ()
     
     parser = argparse.ArgumentParser (description = 'Nvidia Signing Script: A small script which signs Nvidia\'s kernel modules for any installed kernel newer than the currently booted one.')
+    parser.add_argument ('modulesFile', help = 'Your modules JSON file specifying the modules that you want to sign (see README for details)')
     parser.add_argument ('privateKeyFile', help = 'Your private key file for signing the kernel modules (see README for details)')
     parser.add_argument ('publicKeyFile', help = 'Your public key file for signing the kernel modules (see README for details)')
     parser.add_argument ('-debug', '--debug', help = 'Display extra print statements for debugging', action = 'store_true')
@@ -376,7 +413,14 @@ def main ():
         print ('%s: Found new kernels: %s' %(__title__, newKernels))
         print ()
         
-        signNewKernels (newKernels, args.privateKeyFile, args.publicKeyFile)
+        moduleEntries = getModuleEntries (args.modulesFile)
+
+        print ('%s: Signing modules for: ' %__title__, end = '')
+        for moduleEntry in moduleEntries ['moduleEntries']:
+            print (moduleEntry ['name'], end = ', ')
+        print ('\n')
+        
+        signNewKernels (newKernels, moduleEntries, args.privateKeyFile, args.publicKeyFile)
     
         print ('%s: Kernel modules for new kernels have been signed' %__title__)
         print ()
