@@ -423,8 +423,8 @@ def main ():
     print ('%s: Found package manager: %s' %(__title__, packageManager))
     print ()
     
-    #currentKernel = getCurrentKernel ()
-    currentKernel = '4.7.2-200.fc24.x86_64'
+    currentKernel = getCurrentKernel ()
+
     print ('%s: Found current kernel: %s' %(__title__, currentKernel))
     print ()
     
