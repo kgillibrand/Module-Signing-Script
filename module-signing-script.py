@@ -249,7 +249,7 @@ def signKernel (kernel: str, modules: dict, privateKeyPath: str, publicKeyPath: 
         
     #Sign the modules for each entry in the JSON file
     for moduleEntry in modules ['moduleEntries']:
-        modulesPath = BASE_MODULES_PATH + moduleEntry ['path']
+        modulesPath = BASE_MODULES_PATH + moduleEntry ['directory']
         
         moduleFiles = moduleEntry ['moduleFiles']
         
@@ -397,8 +397,8 @@ def main ():
     print ('%s: Found package manager: %s' %(__title__, packageManager))
     print ()
     
-    currentKernel = getCurrentKernel ()
-    
+    #currentKernel = getCurrentKernel ()
+    currentKernel = '4.7.2-200.fc24.x86_64'
     print ('%s: Found current kernel: %s' %(__title__, currentKernel))
     print ()
     
