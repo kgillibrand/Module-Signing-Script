@@ -2,20 +2,53 @@
 
 Copyright Kieran Gillibrand 2016 (MIT License)
 
-Small Python script which self signs Nivida's kernel modules for any kernels newer than the currently booted one.
+Small Python script which self signs kernel modules for any kernels newer than the currently booted one.
 
-You will only need this if you wish to use Nvidia's propietary drivers and keep secure boot enabled. Most people I've seen online just disable secure boot but I don't think that's a brilliant soloution.
+You will only need this if you wish to use unsigned kernel modules (Nvidia and VirtualBox in my case) and keep secure boot enabled. Most people I've seen online just disable secure boot but I don't think that's a brilliant soloution.
 
 Personal project now released.
 
 #Usage
 - -h: Show help.
+- modulesFile: JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
 - privateKeyFile: Mandatory first positional argument. Your private key file for signing the modules.
 - publicKeyFile: Mandatory second positional argument. Your public key file for signing the modules.
 - -debug/--debug: Display extra information for debugging
 
 #Preparation
-- See: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html for instructions to create key files and my gist with some updates: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49 if you want to try signing the modules yourself.
+- See this guide for instructions to create key files and enroll your private key: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html
+- See my gist with some updates to the guide if you want to try signing any modules manually: https://gist.github.com/Favorablestream/4b6822e14a6e1267b1c46049274c8e49
+- Create your modules JSON file using the format below and provide it and your key files as command line parameters to the script.
+
+JSON Modules File Layout:
+```
+{
+    "moduleEntries": 
+    [
+        {
+            "name": "Nvidia",
+            "directory": "extra/nvidia/",
+            "moduleFiles": ["nvidia-drm.ko", "nvidia.ko", "nvidia-modeset.ko", "nvidia-uvm.ko"]
+        },
+        
+        {
+            "name": "VirtualBox",
+            "directory": "extra/VirtualBox/",
+            "moduleFiles": ["vboxdrv.ko", "vboxguest.ko", "vboxnetadp.ko", "vboxnetflt.ko", "vboxpci.ko", "vboxsf.ko", "vboxvideo.ko"]
+        }
+    ]
+}
+```
+
+Parameters
+- name: Section name for the collection of modules
+- directory: The directory where the modules are contained. This gets appended to: /usr/lib/modules/**CURRENT_KERNEL**/. For example my modules for Nvidia in the example above are located in: /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/nvidia
+- moduleFiles: List of the module files to sign
+
+Notes
+- Make sure your format for this file is correct. Try: http://jsonlint.com
+- You can have less or more sections than me but make sure you have at least one.
+- Make sure you use the same paramater names that I do.
 
 #Dependancies
 - A Python 3 interpreter
@@ -27,6 +60,7 @@ Personal project now released.
 - Find the currently booted kernel
 - Find all installed kernels using the package manager
 - Compare the kernel versions and find out which are newer than the currently booted one
+- Parse the modules file and extract the modules to sign
 - Sign the modules for all new kernels
 
 #Notes and Issues
@@ -44,9 +78,9 @@ Personal project now released.
 
 2. Make the script executable
 
-3. Make sure you have your private and public keys generated
+3. Make sure you have followed all the preparation steps above.
 
-4. Run the script providing the private and public key files as parameters, your modules will now be signed for all new kernels
+4. Run the script providing the modules file, private key file, and public key file as parameters, your modules will now be signed for all new kernels
 
 5. Set it up as a root cron job if you want
 
@@ -58,8 +92,6 @@ executeCommandWithOutput ():
 
 signKernel () (KERNEL_VERSION here refers to the kernel being signed not the booted one. It is a method parameter in signKernel () called kernel)
 - SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION**/scripts/sign-file
-- MODULES_PATH: Path to the Nivida kernel modules. Default: /usr/lib/modules/**KERNEL_VERSION**/extra/nvidia/
-- MODULES_NAMES: A list of the Nivia modules to sign. Default: nvidia-drm.ko, nvidia.ko, nvidia-modeset.ko, nvidia-uvm.ko
 
 #License
 MIT License
