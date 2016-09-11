@@ -6,7 +6,7 @@ Small Python script which self signs kernel modules for any kernels newer than t
 
 You will only need this if you wish to use unsigned kernel modules (Nvidia and VirtualBox in my case) and keep secure boot enabled. Most people I've seen online just disable secure boot but I don't think that's a brilliant soloution.
 
-This script signs the kernel modules with your personal key. Be sure to keep your key files safe because anyone with these files can sign any module or execute any arbitrary code on your system once you have your key enrolled in your system.
+This script signs the kernel modules with your personal key. Be sure to keep your key files safe because anyone with these files can sign any module or execute any arbitrary code on your system once you have your key enrolled.
 
 This is a personal project that's now released.
 
