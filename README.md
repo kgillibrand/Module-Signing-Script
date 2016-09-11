@@ -46,7 +46,7 @@ JSON Modules File Layout:
 Parameters
 - name: Section name for the collection of modules
 - directory: The directory where the modules are contained. 
-This gets appended to: /usr/lib/modules/**CURRENT_KERNEL**/
+This gets appended to: /usr/lib/modules/**KERNEL_VERSION_BEING_SIGNED**/
 For example my modules for Nvidia are located in: /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/nvidia
 - moduleFiles: List of the module files to sign
 
@@ -95,8 +95,8 @@ You might need to change these if you run into problems
 executeCommandWithOutput ():
 - ENCODING: The encoding used to decode the command output. Default: utf-8
 
-signKernel () (KERNEL_VERSION here refers to the kernel being signed not the booted one. It is a method parameter in signKernel () called kernel)
-- SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION**/scripts/sign-file
+signKernel ():
+- SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION_BEING_SIGNED**/scripts/sign-file
 
 #License
 MIT License
