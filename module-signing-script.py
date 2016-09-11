@@ -227,7 +227,7 @@ def getModuleEntries (modulesPath: str) -> dict:
         
     return modules
         
-def signKernel (kernel: str, modules: dict, privateKeyPath: str, publicKeyPath: str):
+def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
     '''
         Signs the nvidia kernel modules for a kernel (void).
         
@@ -240,7 +240,7 @@ def signKernel (kernel: str, modules: dict, privateKeyPath: str, publicKeyPath: 
     '''Path to the sign-file binary used to sign the kernel modules'''
     
     BASE_MODULES_PATH = '/usr/lib/modules/' + kernel + '/'
-    '''Path to modules before the directory provided by the JSON file is appended'''
+    '''Path to modules before the directory provided by each module entry is appended'''
         
     #Print if the user is not root (uid 0)
     if os.getuid () != 0:
@@ -248,7 +248,7 @@ def signKernel (kernel: str, modules: dict, privateKeyPath: str, publicKeyPath: 
         print ()
         
     #Sign the modules for each entry in the JSON file
-    for moduleEntry in modules ['moduleEntries']:
+    for moduleEntry in moduleEntries:
         modulesPath = BASE_MODULES_PATH + moduleEntry ['directory']
         
         moduleFiles = moduleEntry ['moduleFiles']
@@ -359,7 +359,7 @@ def getNewKernels (currentKernel: str, installedKernels: list) -> list:
     
     return newKernels
     
-def signNewKernels (newKernels: list, moduleEntries: dict, privateKeyPath: str, publicKeyPath: str):
+def signNewKernels (newKernels: list, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
     '''
         Signs the nvidia kernel modules for every new kernel by calling signKernel () on each (void).
         
@@ -397,8 +397,8 @@ def main ():
     print ('%s: Found package manager: %s' %(__title__, packageManager))
     print ()
     
-    #currentKernel = getCurrentKernel ()
-    currentKernel = '4.7.2-200.fc24.x86_64'
+    currentKernel = getCurrentKernel ()
+    
     print ('%s: Found current kernel: %s' %(__title__, currentKernel))
     print ()
     
@@ -413,10 +413,11 @@ def main ():
         print ('%s: Found new kernels: %s' %(__title__, newKernels))
         print ()
         
-        moduleEntries = getModuleEntries (args.modulesFile)
-
+        modulesFile = getModuleEntries (args.modulesFile)
+        moduleEntries = modulesFile ['moduleEntries']
+        
         print ('%s: Signing modules for: ' %__title__, end = '')
-        for moduleEntry in moduleEntries ['moduleEntries']:
+        for moduleEntry in moduleEntries:
             print (moduleEntry ['name'], end = ', ')
         print ('\n')
         
