@@ -44,7 +44,7 @@ __copyright__ = 'Copyright 2016 Kieran Gillibrand'
 __credits__ = []
 __license__ = 'MIT License (LICENSE.txt)'
 __version__ = '1.1'
-__date__ = '10/09/2016'
+__date__ = '11/09/2016'
 __maintainer__ = 'Kieran Gillibrand'
 __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
@@ -56,9 +56,9 @@ import subprocess #check_output (), call ()
 
 import argparse #ArgumentParser ()
 
-import re #search () (Regular exppressions)
+import re #search () (Regular expressions)
 
-import pkg_resources #parse_version (Version comparisions)
+import pkg_resources #parse_version (Kernel Version comparisions)
 
 import os #getuid ()
 
@@ -82,10 +82,10 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
         - 2: Unable to sign a kernel module
         - 3: Unable to extract the kernel version string
         - 4: Cannot open modules JSON file
-        - 5: Modules JSON file is malformed
+        - 5: Modules JSON content is malformed
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON file is malformed']
+    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed']
     
     print (__title__ + ': Error: ' + errorMessage)
     print ()
@@ -141,8 +141,8 @@ def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> i
 
 def extractKernelVersionString (inputLine: str) -> str:
     '''
-        Extracts the kernel version (Ex: 4.7.2-201.fc24.x86_64) from a line text (str)
-        Be sure to strip trailing newlines with rstrip () if you are splitting multiline output on newlines so that you don't pass an empty line.
+        Extracts a kernel version string (Ex: 4.7.2-201.fc24.x86_64) from a line of text (str)
+        Be sure to strip trailing newlines with rstrip () if you are splitting multiline output on newlines so that you don't pass an empty line to this method.
     
         inputLine (str): The line of output to extract the version string from
     '''
@@ -204,9 +204,9 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
     
     return comparisonValue
     
-def getModuleEntries (modulesPath: str) -> dict:
+def getModuleEntries (modulesPath: str) -> list:
     '''
-        Parses the provided JSON file to get information for the modules to sign (dict)
+        Parses the provided JSON file to get information for the modules to sign as a list of module entries (list)
         
         modulesPath (str): The path to the modules JSON file
     '''
@@ -225,7 +225,7 @@ def getModuleEntries (modulesPath: str) -> dict:
     except (ValueError) as jsonError:
         handleError (message = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
         
-    return modules
+    return modules ["moduleEntries"]
         
 def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
     '''
@@ -352,7 +352,7 @@ def getNewKernels (currentKernel: str, installedKernels: list) -> list:
         
     newKernels = []
     
-    #Compare kernels and add them to the newKernels list if they are newer than the current 
+    #Compare kernels and add them to the newKernels list if they are newer than the currently booted one
     for installedKernel in installedKernels:        
         if compareKernels (installedKernel, currentKernel) == 1:
             newKernels.append (installedKernel)
@@ -413,8 +413,7 @@ def main ():
         print ('%s: Found new kernels: %s' %(__title__, newKernels))
         print ()
         
-        modulesFile = getModuleEntries (args.modulesFile)
-        moduleEntries = modulesFile ['moduleEntries']
+        moduleEntries = getModuleEntries (args.modulesFile)
         
         print ('%s: Signing modules for: ' %__title__, end = '')
         for moduleEntry in moduleEntries:
