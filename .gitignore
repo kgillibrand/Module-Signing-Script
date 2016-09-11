@@ -5,3 +5,6 @@
 #Signing keys
 *.der
 *.priv
+
+#Modules JSON file
+*.json
