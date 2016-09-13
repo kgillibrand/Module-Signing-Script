@@ -451,6 +451,8 @@ def main ():
     if args.kernels != None:
         print ('%s: Running in manual mode' %__title__)
         print ()
+        print ('%s: Provided kernels: %s' %(__title__, args.kernels))
+        print ()
         
         for kernel in args.kernels:
             kernelVersion = extractKernelVersionString (kernel) #Will exit if the argument is not a proper version string
