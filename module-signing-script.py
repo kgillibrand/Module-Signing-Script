@@ -88,9 +88,10 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
         - 4: Cannot open modules JSON file
         - 5: Modules JSON content is malformed
         - 6: Cannot access modules directory
+        - 7: Cannot build akmods for kernel
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory']
+    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory', 'Cannot build akmods for kernel']
     
     print (__title__ + ': Error: ' + errorMessage)
     print ()
@@ -232,6 +233,18 @@ def getModuleEntries (modulesPath: str) -> list:
         
     return modules ["moduleEntries"]
 
+def buildAkmods (kernel: str):
+    '''
+        Build the kernel modules for a kernel (void)
+        The akmods command exits with 0 if it builds modules or if they already exist for the specified kernel
+        --force causes akmods to run even building the modules previously failed
+        akmods requires root so sudo is called
+        
+        kernel (str): The kernel to build modules for
+    '''
+    if executeCommandWithExitStatus ('sudo', ['akmods', '--kernels', kernel, '--force']) != 0:
+        handleError (errorMessage = 'Could not build akmods for kernel: %s' %kernel, exitCode = 7)
+    
 @contextlib.contextmanager
 def changeWorkingDirectory (newDirectory: str):
     '''
@@ -264,10 +277,16 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
     
     BASE_MODULES_PATH = '/usr/lib/modules/' + kernel + '/'
     '''Path to modules before the directory provided by each module entry is appended'''
-        
+    
     #Print if the user is not root (uid 0)
     if os.getuid () != 0:
-        print ('%s: Signing kernel modules must be done as root. You may be prompted for your password:' %__title__)
+        print ('%s: Building kernel modules and signing them must be done as root. You may be prompted for your password:' %__title__)
+        print ()
+        
+    buildAkmods (kernel)
+    
+    if DEBUG:
+        print ('Akmods have been built for kernel: %s or they already exist' %kernel)
         print ()
         
     #Sign the modules for each entry in the JSON file
@@ -284,7 +303,7 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
                     print ()
             
                 #Sign all the modules in the list of modules and call handleError if the exit status is not 0
-                #The sign-file binary needs to be called as root so sudo is called each time (though it should only prompt for your password once)
+                #The sign-file binary needs to be called as root so sudo is called each time (though sudo was already called by buildAkmods ())
                 #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
                 for moduleFile in moduleFiles:
                     if DEBUG:
@@ -414,7 +433,7 @@ def main ():
     parser.add_argument ('modulesFile', help = 'Your modules JSON file specifying the modules that you want to sign (see README for details)')
     parser.add_argument ('privateKeyFile', help = 'Your private key file for signing the kernel modules (see README for details)')
     parser.add_argument ('publicKeyFile', help = 'Your public key file for signing the kernel modules (see README for details)')
-    parser.add_argument ('-k', '--kernel', type = str, help = '(Optional) Sign the modules only for the provided kernel')
+    parser.add_argument ('-k', '--kernels', type = str, nargs = '+', help = '(Optional) Sign the modules only for the provided kernel')
     parser.add_argument ('-d', '--debug', help = '(Optional) Display extra print statements for debugging', action = 'store_true')
     args = parser.parse_args ()
     
@@ -428,12 +447,27 @@ def main ():
         print (moduleEntry ['name'], end = ', ')
     print ('\n')
     
-    if args.kernel != None:
-        kernel = extractKernelVersionString (args.kernel)
+    #Manual mode (-k/--kernels is present)
+    if args.kernels != None:
+        print ('%s: Running in manual mode' %__title__)
+        print ()
         
-        signKernel (kernel, moduleEntries, args.privateKeyFile, args.publicKeyFile)
+        for kernel in args.kernels:
+            kernelVersion = extractKernelVersionString (kernel) #Will exit if the argument is not a proper version string
+            
+            print ('%s: Signing provided kernel: %s' %(__title__, kernelVersion))
+            print ()
+            
+            signKernel (kernelVersion, moduleEntries, args.privateKeyFile, args.publicKeyFile)
         
+        print ('%s: Kernel modules for provided kernel(s) have been signed' %__title__)
+        print ()
+        
+    #Else automatic mode
     else:
+        print ('%s: Running in automatic (new kernels) mode' %__title__)
+        print ()
+        
         packageManager = getPackageManager ()
         
         print ('%s: Found package manager: %s' %(__title__, packageManager))
