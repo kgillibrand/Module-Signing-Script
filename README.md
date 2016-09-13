@@ -14,8 +14,9 @@ This is a personal project that's now released.
 - modulesFile: Mandatory first positional argument. JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
 - privateKeyFile: Mandatory second positional argument. Your private key file for signing the modules.
 - publicKeyFile: Mandatory third positional argument. Your public key file for signing the modules.
+- -k/--kernels: Manually sign the provided kernels. Make sure to provide the correct format (see uname -r).
 - -h: Show help.
-- -debug/--debug: Display extra information for debugging
+- -d/--debug: Display extra information for debugging
 
 #Preparation
 - See this guide for instructions to create key files and enroll your private key: http://www.pellegrino.link/2015/11/29/signing-nvidia-proprietary-driver-on-fedora.html
@@ -61,12 +62,19 @@ Notes
 - The kernel-devel package (or equivalent for your distro, linux-headers-generic, etc) which provides the sign-file binary
 
 #Script Operation
+
+Automatic Mode
 - Find the system package manager
 - Find the currently booted kernel
 - Find all installed kernels using the package manager
 - Compare the kernel versions and find out which are newer than the currently booted one
 - Parse the modules file and extract the modules to sign
+- Build akmods for the kernels to sign if they don't exist
 - Sign the modules for all new kernels
+
+Manual Mode (-k/--kernels)
+- Build akmods for the provided kernels if they don't exist
+- Sign the modules for the provided kernel versions
 
 #Notes and Issues
 - This script requires root to sign the kernel modules. It will call sudo and prompt for your password before signing them. If you register it as a cron job be sure to do so as root.
@@ -85,7 +93,7 @@ Notes
 
 3. Make sure you have followed all the preparation steps above.
 
-4. Run the script providing the modules file, private key file, and public key file as parameters, your modules will now be signed for all new kernels
+4. Run the script providing the modules file, private key file, and public key file as parameters, your modules will now be signed for all new kernels. Alternatively use the manual mode if the kernels you want signed are your current kernel or older.
 
 5. Set it up as a root cron job if you want
 
@@ -97,6 +105,8 @@ executeCommandWithOutput ():
 
 signKernel ():
 - SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION_BEING_SIGNED**/scripts/sign-file
+- BASE_MODULES_PATH: The path that gets prepended to the modules path provided by each entry in the JSON file. Default: /usr/lib/modules/**KERNEL_VERSION_BEING_SIGNED**/
+  Ex: /usr/lib/modules/4.7.2-201.fc24.x86_64/ + extra/Nvidia = /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/Nvidia
 
 #License
 MIT License

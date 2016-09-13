@@ -430,10 +430,10 @@ def main ():
     print ()
     
     parser = argparse.ArgumentParser (description = 'Nvidia Signing Script: A small script which signs Nvidia\'s kernel modules for any installed kernel newer than the currently booted one.')
-    parser.add_argument ('modulesFile', help = 'Your modules JSON file specifying the modules that you want to sign (see README for details)')
-    parser.add_argument ('privateKeyFile', help = 'Your private key file for signing the kernel modules (see README for details)')
-    parser.add_argument ('publicKeyFile', help = 'Your public key file for signing the kernel modules (see README for details)')
-    parser.add_argument ('-k', '--kernels', type = str, nargs = '+', help = '(Optional) Sign the modules only for the provided kernel')
+    parser.add_argument ('modulesFile', help = '(Mandatory) Your modules JSON file specifying the modules that you want to sign (see README for details)')
+    parser.add_argument ('privateKeyFile', help = '(Mandatory) Your private key file for signing the kernel modules (see README for details)')
+    parser.add_argument ('publicKeyFile', help = '(Mandatory) Your public key file for signing the kernel modules (see README for details)')
+    parser.add_argument ('-k', '--kernels', type = str, nargs = '+', help = '(Optional) Sign the modules only for the provided kernels. Make sure to format them correctly (see uname -r output)')
     parser.add_argument ('-d', '--debug', help = '(Optional) Display extra print statements for debugging', action = 'store_true')
     args = parser.parse_args ()
     
