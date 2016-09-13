@@ -66,6 +66,8 @@ import json #loads () (JSON parsing)
 
 import contextlib #contextmanager (Changing working directory)
 
+import os.path #isfile ()
+
 DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
@@ -289,7 +291,7 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
                         print ('Signing kernel module: %s' %moduleFile)
 
                     if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile]) != 0:
-                        handleError ('Error signing kernel module: %s (Check your password for sudo, your keyfiles, or the module entries in your json file)' %moduleFile, 2)
+                        handleError ('Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %moduleFile, 2)
                 
                 if DEBUG:
                     print ()
@@ -412,48 +414,55 @@ def main ():
     parser.add_argument ('modulesFile', help = 'Your modules JSON file specifying the modules that you want to sign (see README for details)')
     parser.add_argument ('privateKeyFile', help = 'Your private key file for signing the kernel modules (see README for details)')
     parser.add_argument ('publicKeyFile', help = 'Your public key file for signing the kernel modules (see README for details)')
-    parser.add_argument ('-debug', '--debug', help = 'Display extra print statements for debugging', action = 'store_true')
+    parser.add_argument ('-k', '--kernel', type = str, help = '(Optional) Sign the modules only for the provided kernel')
+    parser.add_argument ('-d', '--debug', help = '(Optional) Display extra print statements for debugging', action = 'store_true')
     args = parser.parse_args ()
     
     global DEBUG 
     DEBUG = args.debug
     
-    packageManager = getPackageManager ()
+    moduleEntries = getModuleEntries (args.modulesFile)
     
-    print ('%s: Found package manager: %s' %(__title__, packageManager))
-    print ()
+    print ('%s: Signing modules for: ' %__title__, end = '')
+    for moduleEntry in moduleEntries:
+        print (moduleEntry ['name'], end = ', ')
+    print ('\n')
     
-    currentKernel = getCurrentKernel ()
-
-    print ('%s: Found current kernel: %s' %(__title__, currentKernel))
-    print ()
-    
-    installedKernels = getInstalledKernels (packageManager)
-    
-    print ('%s: Found installed kernels: %s' %(__title__, installedKernels))
-    print ()
-    
-    newKernels = getNewKernels (currentKernel, installedKernels)
-    
-    if len (newKernels) > 0:
-        print ('%s: Found new kernels: %s' %(__title__, newKernels))
-        print ()
+    if args.kernel != None:
+        kernel = extractKernelVersionString (args.kernel)
         
-        moduleEntries = getModuleEntries (args.modulesFile)
+        signKernel (kernel, moduleEntries, args.privateKeyFile, args.publicKeyFile)
         
-        print ('%s: Signing modules for: ' %__title__, end = '')
-        for moduleEntry in moduleEntries:
-            print (moduleEntry ['name'], end = ', ')
-        print ('\n')
-        
-        signNewKernels (newKernels, moduleEntries, args.privateKeyFile, args.publicKeyFile)
-    
-        print ('%s: Kernel modules for new kernels have been signed' %__title__)
-        print ()
-    
     else:
-        print ('%s: No new kernels found' %__title__)
+        packageManager = getPackageManager ()
+        
+        print ('%s: Found package manager: %s' %(__title__, packageManager))
         print ()
+        
+        currentKernel = getCurrentKernel ()
+
+        print ('%s: Found current kernel: %s' %(__title__, currentKernel))
+        print ()
+        
+        installedKernels = getInstalledKernels (packageManager)
+        
+        print ('%s: Found installed kernels: %s' %(__title__, installedKernels))
+        print ()
+        
+        newKernels = getNewKernels (currentKernel, installedKernels)
+        
+        if len (newKernels) > 0:
+            print ('%s: Found new kernels: %s' %(__title__, newKernels))
+            print ()
+            
+            signNewKernels (newKernels, moduleEntries, args.privateKeyFile, args.publicKeyFile)
+        
+            print ('%s: Kernel modules for new kernels have been signed' %__title__)
+            print ()
+        
+        else:
+            print ('%s: No new kernels found' %__title__)
+            print ()
     
 if __name__ == '__main__':
     main ()
