@@ -66,8 +66,6 @@ import json #loads () (JSON parsing)
 
 import contextlib #contextmanager (Changing working directory)
 
-import os.path #isfile ()
-
 DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
