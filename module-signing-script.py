@@ -74,7 +74,7 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
     '''
         Error handling function which displays a message, prints an exception (if provided), and exits with an exit code (void).
     
-        message (str): The message to display before exiting
+        errorMessage (str): The message to display before exiting
         exitCode (int): The code to exit with
         exception (Exception) (optional): The exception to print
         
@@ -224,10 +224,10 @@ def getModuleEntries (modulesPath: str) -> list:
             modules = json.loads (modulesFile.read ())
 
     except (IOError, OSError) as fileError:
-        handleError (message = 'Modules file: \'%s\' does not exist or cannot be opened' %modulesPath, exception = fileError, exitCode = 4)
+        handleError (errorMessage = 'Modules file: \'%s\' does not exist or cannot be opened' %modulesPath, exception = fileError, exitCode = 4)
         
     except (ValueError) as jsonError:
-        handleError (message = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
+        handleError (errorMessage = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
         
     return modules ["moduleEntries"]
 
