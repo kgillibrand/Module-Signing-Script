@@ -12,8 +12,8 @@ This is a personal project that's now released.
 
 #Usage
 - modulesFile: Mandatory first positional argument. JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
-- privateKeyFile: Mandatory second positional argument. Your private key file for signing the modules.
-- publicKeyFile: Mandatory third positional argument. Your public key file for signing the modules.
+- privateKeyFile: Mandatory second positional argument. Your private key file for signing the modules (symlinks do not work for this arg).
+- publicKeyFile: Mandatory third positional argument. Your public key file for signing the modules (symlinks do not work for this arg).
 - -k/--kernels: Manually sign the provided kernels. Make sure to provide the correct format (see uname -r).
 - -h: Show help.
 - -d/--debug: Display extra information for debugging
@@ -84,6 +84,7 @@ Manual Mode (-k/--kernels)
 - I haven't had the time to boot any virtual machines and test other configurations (mine is Fedora, rpm). I also haven't installed any new kernel versions lately to test if the signing process works on a new one. Signing an existing kernel (already signed) works fine for me though.
 - I don't want to use external files to track state so the script will sign modules for any kernel newer than the current one even if they have already been signed. This has no ill effects on the modules though. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned Nvidia modules (as long as you still have secure boot enabled) so the script assumes your current kernel modules are signed.
 - There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed without building packages for various package managers.
+- I found out the hard way that you can't use symlinks for your public or private key files so I added a note to the help for those argumants. The sign-file binary doesn't seem to accept a valid link to the files so I can't fix this.
 
 #Downloading and Usage
 
