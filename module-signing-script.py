@@ -70,13 +70,14 @@ DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
 #Helper methods called by other methods
-def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
+def handleError (errorMessage: str, exitCode: int, exception: Exception = None, commandExitCode: int = 0):
     '''
         Error handling function which displays a message, prints an exception (if provided), and exits with an exit code (void).
     
         errorMessage (str): The message to display before exiting
         exitCode (int): The code to exit with
         exception (Exception) (optional): The exception to print
+        commandExitCode (int) (optional): The exit code of the command that caused the error
         
         Script Exit codes
         - 0: Success, normal exit code
@@ -92,6 +93,10 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
     exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory', 'Cannot build akmods for kernel']
     
     print (__title__ + ': Error: ' + errorMessage)
+    
+    if commandExitCode != 0:
+        print ('Last command exited with code %d' %commandExitCode)
+        
     print ()
     
     if exception != None:
@@ -104,7 +109,7 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None):
 
 def executeCommandWithOutput (commandName: str, commandArgs: list = []) -> str:
     '''
-        Fetches a process output and decodes it as a utf-8 string (by default) (str)
+        Fetches a process output, decodes it as a utf-8 string (by default), and returns it (str)
         
         commandName (str): The name of the command to run
         commandArgs (list <string>) (optional): The arguments to supply to the command (-r, etc)
@@ -307,8 +312,9 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
                     if DEBUG:
                         print ('Signing kernel module: %s' %moduleFile)
 
-                    if executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile]) != 0:
-                        handleError ('Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %moduleFile, 2)
+                    signModuleStatus = executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile])
+                    if signModuleStatus != 0:
+                        handleError (errorMessage = 'Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %moduleFile, exitCode = 2, commandExitCode = signModuleStatus)
                 
                 if DEBUG:
                     print ()
