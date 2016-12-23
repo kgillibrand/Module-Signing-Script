@@ -43,33 +43,72 @@ __host__ = 'https://github.com/Favorablestream/Module-Signing-Script'
 __copyright__ = 'Copyright 2016 Kieran Gillibrand'
 __credits__ = []
 __license__ = 'MIT License (LICENSE.txt)'
-__version__ = '1.2'
-__date__ = '13/09/2016'
+__version__ = '1.3'
+__date__ = '22/12/2016'
 __maintainer__ = 'Kieran Gillibrand'
 __email__ = 'Kieran.Gillibrand6@gmail.com'
 __status__ = 'Personal Project (in development)'
 
 #Imports
-import sys #exit ()
+import sys
 
-import subprocess #check_output (), call ()
+import subprocess
 
-import argparse #ArgumentParser ()
+import argparse
 
-import re #search () (Regular expressions)
+import re
 
-import pkg_resources #parse_version (Kernel Version comparisions)
+import pkg_resources
 
-import os #getuid ()
+import os
 
-import json #loads () (JSON parsing)
+import json
 
-import contextlib #contextmanager (Changing working directory)
+import contextlib
 
 DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
 #Helper methods called by other methods
+def debugPrint (message: str, printNewline: bool = True):
+    '''
+        Print a message if debugging statements are enabled
+        
+        message (str): The message to print
+        printNewline (bool): Print an additional newline after the message (default True) 
+    '''
+    
+    if message == None:
+        return
+        
+    if not DEBUG:
+        return
+        
+    print (message)
+    
+    if printNewline:
+        print ()
+        
+def nonDebugPrint (message: str, printNewline: bool = True):
+    '''
+        Print a message if debugging statements are not enabled
+        
+        message (str): The message to print
+        printNewline (bool): Print an additional newline after the message (default True)
+    '''
+    
+    if message == None:
+        return
+        
+    if DEBUG:
+        return
+        
+    print (message)
+    
+    if printNewline:
+        print ()
+
+
 def handleError (errorMessage: str, exitCode: int, exception: Exception = None, commandExitCode: int = 0):
     '''
         Error handling function which displays a message, prints an exception (if provided), and exits with an exit code (void).
@@ -178,12 +217,10 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
         kernel2 (str): The second kernel version string
     '''
 
-    if DEBUG:
-        print ('---------------------------------------------')
-        print ('Kernel version comparison')
-        print ('Kernel version 1: %s' %kernel1)
-        print ('Kernel version 2: %s' %kernel2)
-        print ()
+    debugPrint ('---------------------------------------------', printNewline = False)
+    debugPrint ('Kernel version comparison', printNewline = False)
+    debugPrint ('Kernel version 1: %s' %kernel1, printNewline = False)
+    debugPrint ('Kernel version 2: %s' %kernel2)
     
     kernel1Version = pkg_resources.parse_version (kernel1)
     kernel2Version = pkg_resources.parse_version (kernel2)
@@ -193,23 +230,18 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
     if kernel1Version > kernel2Version:
         comparisonValue = 1
         
-        if DEBUG:
-            print ('Kernel version 1 evaluated as newer')
+        debugPrint ('Kernel version 1 evaluated as newer')
         
     elif kernel1Version < kernel2Version:
         comparisonValue = -1
         
-        if DEBUG:
-            print ('Kernel version 2 evaluated as newer')
+        debugPrint ('Kernel version 2 evaluated as newer')
         
     else:        
-        if DEBUG:
-            print ('Kernel versions evaluated as equal')
+        debugPrint ('Kernel versions evaluated as equal')
         
-    if DEBUG:
-        print ('Return value: %d' %comparisonValue)
-        print ('---------------------------------------------')
-        print ()
+    debugPrint ('Return value: %d' %comparisonValue, printNewline = False)
+    debugPrint ('---------------------------------------------')
     
     return comparisonValue
     
@@ -222,9 +254,7 @@ def getModuleEntries (modulesPath: str) -> list:
     
     try:
         with open (modulesPath) as modulesFile:
-            if DEBUG:
-                print ('Using modules file: \'%s\'' %modulesPath)
-                print ()
+            debugPrint ('Using modules file: \'%s\'' %modulesPath)
                     
             modules = json.loads (modulesFile.read ())
 
@@ -288,9 +318,7 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
         
     buildAkmods (kernel)
     
-    if DEBUG:
-        print ('Akmods have been built for kernel: %s or they already exist' %kernel)
-        print ()
+    debugPrint ('Akmods have been built for kernel: %s or they already exist' %kernel)
         
     #Sign the modules for each entry in the JSON file
     for moduleEntry in moduleEntries:
@@ -300,24 +328,18 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
             with changeWorkingDirectory (modulesPath):
                 moduleFiles = moduleEntry ['moduleFiles']
                                 
-                if DEBUG:
-                    print ('Switched to modules directory: %s' %modulesPath)
-                    print ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
-                    print ()
+                debugPrint ('Switched to modules directory: %s' %modulesPath, printNewline = False)
+                debugPrint ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
             
                 #Sign all the modules in the list of modules and call handleError if the exit status is not 0
                 #The sign-file binary needs to be called as root so sudo is called each time (though sudo was already called by buildAkmods ())
                 #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
                 for moduleFile in moduleFiles:
-                    if DEBUG:
-                        print ('Signing kernel module: %s' %moduleFile)
+                    debugPrint ('Signing kernel module: %s' %moduleFile)
 
                     signModuleStatus = executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile])
                     if signModuleStatus != 0:
                         handleError (errorMessage = 'Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %moduleFile, exitCode = 2, commandExitCode = signModuleStatus)
-                
-                if DEBUG:
-                    print ()
         
         except (FileNotFoundError) as directoryError:
             handleError (errorMessage = 'Could not move to modules directory: %s' %modulesPath, exception = directoryError, exitCode = 6)
