@@ -51,16 +51,13 @@ __status__ = 'Personal Project (in development)'
 
 #Imports
 import sys
-
+import os
 import subprocess
 
 import argparse
 
 import re
-
 import pkg_resources
-
-import os
 
 import json
 
@@ -70,53 +67,47 @@ DEBUG = False
 '''Global flag for debuging print statements, set by -debug/--debug'''
 
 #Helper methods called by other methods
-def debugPrint (message: str, printNewline: bool = True):
+def debug_print (message: str, print_newline: bool = True):
     '''
         Print a message if debugging statements are enabled
         
         message (str): The message to print
-        printNewline (bool): Print an additional newline after the message (default True) 
+        print_newline (bool): Print an additional newline after the message (default True) 
     '''
     
-    if message == None:
-        return
-        
     if not DEBUG:
         return
         
     print (message)
     
-    if printNewline:
+    if print_newline:
         print ()
         
-def nonDebugPrint (message: str, printNewline: bool = True):
+def non_debug_print (message: str, print_newline: bool = True):
     '''
         Print a message if debugging statements are not enabled
         
         message (str): The message to print
-        printNewline (bool): Print an additional newline after the message (default True)
+        print_newline (bool): Print an additional newline after the message (default True)
     '''
     
-    if message == None:
-        return
-        
     if DEBUG:
         return
-        
+    
     print (message)
     
-    if printNewline:
+    if print_newline:
         print ()
 
 
-def handleError (errorMessage: str, exitCode: int, exception: Exception = None, commandExitCode: int = 0):
+def handle_error (message: str, exit_code: int, exception: Exception = None, command_exitcode: int = 0):
     '''
         Error handling function which displays a message, prints an exception (if provided), and exits with an exit code (void).
     
-        errorMessage (str): The message to display before exiting
-        exitCode (int): The code to exit with
+        message (str): The message to display before exiting
+        exit_code (int): The code to exit with
         exception (Exception) (optional): The exception to print
-        commandExitCode (int) (optional): The exit code of the command that caused the error
+        command_exitcode (int) (optional): The exit code of the command that caused the error
         
         Script Exit codes
         - 0: Success, normal exit code
@@ -129,12 +120,12 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None, 
         - 7: Cannot build akmods for kernel
     '''
     
-    exitCodes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory', 'Cannot build akmods for kernel']
+    exit_codes = ['Success, normal exit', 'Package manager not found', 'Unable to sign a kernel module', 'Unable to extract kernel version string', 'Cannot open modules JSON file', 'Modules JSON content is malformed', 'Cannot access modules directory', 'Cannot build akmods for kernel']
     
-    print (__title__ + ': Error: ' + errorMessage)
+    print ('Error: ' + message)
     
-    if commandExitCode != 0:
-        print ('Last command exited with code %d' %commandExitCode)
+    if command_exitcode != 0:
+        print ('Last command exited with code %d' %command_exitcode)
         
     print ()
     
@@ -142,33 +133,33 @@ def handleError (errorMessage: str, exitCode: int, exception: Exception = None, 
         print (str (exception))
         print ()
         
-    print ('Exiting with exit code: %d, %s' %(exitCode, exitCodes [exitCode]))
+    print ('Exiting with exit code: %d, %s' %(exit_code, exit_codes [exit_code]))
     
-    sys.exit (exitCode)
+    sys.exit (exit_code)
 
-def executeCommandWithOutput (commandName: str, commandArgs: list = []) -> str:
+def execute_with_output (command: str, args: list = []) -> str:
     '''
         Fetches a process output, decodes it as a utf-8 string (by default), and returns it (str)
         
-        commandName (str): The name of the command to run
-        commandArgs (list <string>) (optional): The arguments to supply to the command (-r, etc)
+        command (str): The name of the command to run
+        args (list <string>) (optional): The arguments to supply to the command (-r, etc)
     '''
     
     ENCODING = 'utf-8'
     '''Encoding to use for decoding process output'''
     
-    commandArgs.insert (0, commandName) #check_output () expects the command and it's arguments in the same list
+    args.insert (0, command) #check_output () expects the command and it's arguments in the same list
     
     try:
-        responseBytes = subprocess.check_output (commandArgs)
+        response_bytes = subprocess.check_output (args)
         
     #An exception is raised if the command does not exist, pass it to the caller
-    except (OSError) as executeError:
-        raise executeError
+    except (OSError):
+        raise
         
-    return responseBytes.decode (ENCODING)
+    return response_bytes.decode (ENCODING)
     
-def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> int:
+def execute_with_exit_status (command: str, args: list = []) -> int:
     '''
         Run a command without fetching the output while piping all output streams to /dev/null then return the program exit status (int)
         
@@ -176,39 +167,39 @@ def executeCommandWithExitStatus (commandName: str, commandArgs: list = []) -> i
         commandArgs (list <string>) (optional): The arguments to supply to the command (-r, etc)
     '''    
     
-    commandArgs.insert (0, commandName) #call () expects the command and it's arguments in the same list
+    args.insert (0, command) #call () expects the command and it's arguments in the same list
                 
     try:
-        exitStatus = subprocess.call (args = commandArgs, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+        exitStatus = subprocess.call (args, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
         
     #An exception is raised if the command does not exist, return 127 status instead
-    except (OSError) as executeError:
+    except (OSError):
         exitStatus = 127
         
     return exitStatus
 
-def extractKernelVersionString (inputLine: str) -> str:
+def extract_kernel_version (input_line: str) -> str:
     '''
         Extracts a kernel version string (Ex: 4.7.2-201.fc24.x86_64) from a line of text (str)
         Be sure to strip trailing newlines with rstrip () if you are splitting multiline output on newlines so that you don't pass an empty line to this method.
     
-        inputLine (str): The line of output to extract the version string from
+        input_line (str): The line of output to extract the version string from
     '''
     
-    match = re.search ('\d+(\d+|\.|\-|\_|[a-z]|[A-Z])*', inputLine) #Match a digit then more digits, decimal points, dashes, or letters
+    match = re.search ('\d+(\d+|\.|\-|\_|[a-z]|[A-Z])*', input_line) #Match a digit then more digits, decimal points, dashes, or letters
         
     if match == None:
-        handleError ('Unable to extract version string for input line: %s' %inputLine, 3)
+        handle_error ('Unable to extract version string for input line: %s' %inputLine, exit_code = 3)
             
-    versionString = match.group (0)
+    version_string = match.group (0)
         
     #Sometimes . or - are used as a seperator and are picked up as the last character so remove that last character if it isn't a digit or letter
-    if not (versionString [-1:].isdigit () or versionString [-1:].isalpha ()):
-        versionString = versionString [:-1]
+    if not (version_string [-1:].isdigit () or version_string [-1:].isalpha ()):
+        version_string = version_string [:-1]
             
-    return versionString
+    return version_string
     
-def compareKernels (kernel1: str, kernel2: str) -> int:
+def compare_kernels (kernel1: str, kernel2: str) -> int:
     '''
         Compares two kernel version strings (ex: 4.7.2-200.fc24.x86_64 vs 4.5.5.fc24.x86_64).
         Returns 1 if kernel1 is newer (greater), -1 if kernel2 is newer, and 0 if they are equal (int).
@@ -217,56 +208,56 @@ def compareKernels (kernel1: str, kernel2: str) -> int:
         kernel2 (str): The second kernel version string
     '''
 
-    debugPrint ('---------------------------------------------', printNewline = False)
-    debugPrint ('Kernel version comparison', printNewline = False)
-    debugPrint ('Kernel version 1: %s' %kernel1, printNewline = False)
-    debugPrint ('Kernel version 2: %s' %kernel2)
+    debug_print ('---------------------------------------------', print_newline = False)
+    debug_print ('Kernel version comparison', print_newline = False)
+    debug_print ('Kernel version 1: %s' %kernel1, print_newline = False)
+    debug_print ('Kernel version 2: %s' %kernel2)
     
-    kernel1Version = pkg_resources.parse_version (kernel1)
-    kernel2Version = pkg_resources.parse_version (kernel2)
+    kernel1_version = pkg_resources.parse_version (kernel1)
+    kernel2_version = pkg_resources.parse_version (kernel2)
     
-    comparisonValue = 0
+    comparison_value = 0
     
-    if kernel1Version > kernel2Version:
-        comparisonValue = 1
+    if kernel1_version > kernel2_version:
+        comparison_value = 1
         
-        debugPrint ('Kernel version 1 evaluated as newer')
+        debug_print ('Kernel version 1 evaluated as newer')
         
-    elif kernel1Version < kernel2Version:
-        comparisonValue = -1
+    elif kernel1_version < kernel2_version:
+        comparison_value = -1
         
-        debugPrint ('Kernel version 2 evaluated as newer')
+        debug_print ('Kernel version 2 evaluated as newer')
         
     else:        
-        debugPrint ('Kernel versions evaluated as equal')
+        debug_print ('Kernel versions evaluated as equal')
         
-    debugPrint ('Return value: %d' %comparisonValue, printNewline = False)
-    debugPrint ('---------------------------------------------')
+    debug_print ('Return value: %d' %comparison_value, print_newline = False)
+    debug_print ('---------------------------------------------')
     
-    return comparisonValue
+    return comparison_value
     
-def getModuleEntries (modulesPath: str) -> list:
+def get_module_entries (modules_path: str) -> list:
     '''
         Parses the provided JSON file to get information for the modules to sign as a list of module entries (list)
         
-        modulesPath (str): The path to the modules JSON file
+        modules_path (str): The path to the modules JSON file
     '''
     
     try:
-        with open (modulesPath) as modulesFile:
-            debugPrint ('Using modules file: \'%s\'' %modulesPath)
+        with open (modules_path) as modules_file:
+            debug_print ('Using modules file: \'%s\'' %modules_path)
                     
-            modules = json.loads (modulesFile.read ())
+            modules = json.loads (modules_file.read ())
 
-    except (IOError, OSError) as fileError:
-        handleError (errorMessage = 'Modules file: \'%s\' does not exist or cannot be opened' %modulesPath, exception = fileError, exitCode = 4)
+    except (IOError, OSError) as file_error:
+        handle_error ('Modules file: \'%s\' does not exist or cannot be opened' %modules_path, exception = file_error, exit_code = 4)
         
-    except (ValueError) as jsonError:
-        handleError (errorMessage = 'Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modulesPath, exception = jsonError, exitCode = 5)
+    except (ValueError) as json_error:
+        handle_error ('Modules JSON file: \'%s\' is malformed, refer to the README or the exception message below for the correct format' %modules_path, exception = json_error, exit_code = 5)
         
-    return modules ["moduleEntries"]
+    return modules ["module_entries"]
 
-def buildAkmods (kernel: str):
+def build_akmods (kernel: str):
     '''
         Build the kernel modules for a kernel (void)
         The akmods command exits with 0 if it builds modules or if they already exist for the specified kernel
@@ -275,34 +266,34 @@ def buildAkmods (kernel: str):
         
         kernel (str): The kernel to build modules for
     '''
-    if executeCommandWithExitStatus ('sudo', ['akmods', '--kernels', kernel, '--force']) != 0:
-        handleError (errorMessage = 'Could not build akmods for kernel: %s' %kernel, exitCode = 7)
+    if execute_with_exit_status ('sudo', ['akmods', '--kernels', kernel, '--force']) != 0:
+        handle_error ('Could not build akmods for kernel: %s' %kernel, exit_code = 7)
     
 @contextlib.contextmanager
-def changeWorkingDirectory (newDirectory: str):
+def change_working_directory (new_directory: str):
     '''
         Generator method to change directory in an exception safe way (always returns to the original directory) (generator)
         Borrowed from Stack Overflow after some research on how it works
         
-        newDirectory (str): The directory to switch to
+        new_directory (str): The directory to switch to
     '''
-    previousDirectory = os.getcwd ()
+    previous_directory = os.getcwd ()
     
-    os.chdir (os.path.expanduser (newDirectory))
+    os.chdir (os.path.expanduser (new_directory))
     
     try:
         yield #Return until we're done with the generator
         
     finally:
-        os.chdir (previousDirectory) #Run once we're done
+        os.chdir (previous_directory) #Run once we're done
         
-def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
+def sign_kernel (kernel: str, module_entries: list, private_key_path: str, public_key_path: str):
     '''
-        Signs the nvidia kernel modules for a kernel (void).
+        Signs the kernel modules for a kernel (void).
         
         kernel (str): The kernel whose modules to sign
-        privateKeyPath (str): The path to the private key file to sign with
-        publicKeyPath (str): The path to the public key file to sign with
+        private_key_path (str): The path to the private key file to sign with
+        public_key_path (str): The path to the public key file to sign with
     '''
     
     SIGN_BINARY_PATH = '/usr/src/kernels/' + kernel + '/scripts/sign-file'
@@ -313,39 +304,39 @@ def signKernel (kernel: str, moduleEntries: list, privateKeyPath: str, publicKey
     
     #Print if the user is not root (uid 0)
     if os.getuid () != 0:
-        print ('%s: Building kernel modules and signing them must be done as root. You may be prompted for your password:' %__title__)
+        print ('Building kernel modules and signing them must be done as root. You may be prompted for your password:')
         print ()
         
-    buildAkmods (kernel)
+    build_akmods (kernel)
     
-    debugPrint ('Akmods have been built for kernel: %s or they already exist' %kernel)
+    debug_print ('Akmods have been built for kernel: %s or they already exist' %kernel)
         
     #Sign the modules for each entry in the JSON file
-    for moduleEntry in moduleEntries:
-        modulesPath = BASE_MODULES_PATH + moduleEntry ['directory']
+    for module_entry in module_entries:
+        modules_path = BASE_MODULES_PATH + module_entry ['directory']
         
         try:
-            with changeWorkingDirectory (modulesPath):
-                moduleFiles = moduleEntry ['moduleFiles']
+            with change_working_directory (modules_path):
+                module_files = module_entry ['module_files']
                                 
-                debugPrint ('Switched to modules directory: %s' %modulesPath, printNewline = False)
-                debugPrint ('Kernel module files: %s' %moduleEntry ['moduleFiles'])
+                debug_print ('Switched to modules directory: %s' %modules_path, print_newline = False)
+                debug_print ('Kernel module files: %s' %module_entry ['module_files'])
             
-                #Sign all the modules in the list of modules and call handleError if the exit status is not 0
-                #The sign-file binary needs to be called as root so sudo is called each time (though sudo was already called by buildAkmods ())
+                #Sign all the modules in the list of modules and call handle_error if the exit status is not 0
+                #The sign-file binary needs to be called as root so sudo is called each time (though sudo was already called by build_akmods ())
                 #If this script is set up as a root cron job or the entire script is run as root then the sudo call isn't nessecary but has no effect
-                for moduleFile in moduleFiles:
-                    debugPrint ('Signing kernel module: %s' %moduleFile)
+                for module in module_files:
+                    debug_print ('Signing kernel module: %s' %module, print_newline = False)
 
-                    signModuleStatus = executeCommandWithExitStatus ('sudo', [SIGN_BINARY_PATH, 'sha256', privateKeyPath, publicKeyPath, moduleFile])
-                    if signModuleStatus != 0:
-                        handleError (errorMessage = 'Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %moduleFile, exitCode = 2, commandExitCode = signModuleStatus)
+                    sign_status = execute_with_exit_status ('sudo', [SIGN_BINARY_PATH, 'sha256', private_key_path, public_key_path, module])
+                    if sign_status != 0:
+                        handle_error ('Error signing kernel module: %s (Check your password for sudo, that both your keyfiles have correct paths/exist, and the module entries in your json file)' %module, exit_code = 2, command_exitcode = sign_status)
         
-        except (FileNotFoundError) as directoryError:
-            handleError (errorMessage = 'Could not move to modules directory: %s' %modulesPath, exception = directoryError, exitCode = 6)
+        except (FileNotFoundError) as directory_error:
+            handle_error ('Could not move to modules directory: %s' %modules_path, exception = directory_error, exit_code = 6)
             
 #Core methods called by main ()
-def getPackageManager () -> str:
+def get_package_manager () -> str:
     '''
         Returns the package manager for the current system (str)
         There is no standard way to find the package manager so this function simply tests if the following are installed: rpm, dpkg, pacman
@@ -359,90 +350,87 @@ def getPackageManager () -> str:
     #As is this will cause issues if multiple package managers are installed because only the first that is checked will be detected.
         
     #rpm (Red hat based systems)
-    if executeCommandWithExitStatus ('rpm', ['--version']) == 0:
+    if execute_with_exit_status ('rpm', ['--version']) == 0:
         return 'rpm'
         
     #dpkg (Debian based systems)
-    elif executeCommandWithExitStatus ('dpkg', ['--version']) == 0:
+    elif execute_with_exit_status ('dpkg', ['--version']) == 0:
         return 'dpkg'
         
     #pacman (Arch linux based systems)
-    elif executeCommandWithExitStatus ('pacman', ['--version']) == 0:
+    elif execute_with_exit_status ('pacman', ['--version']) == 0:
         return 'pacman'
         
     #None of the above, sorry obscure package managers
     else:
-        handleError ('Package manager could not be determined', 1)
+        handle_error ('Package manager could not be determined', 1)
     
-def getCurrentKernel () -> str:
+def get_current_kernel () -> str:
     '''
         Returns the current kernel version (str)
     '''
     
-    unameOutput = executeCommandWithOutput ('uname', ['-r'])
-
-    unameOutput.rstrip () #Single line output still contains trailing newline
+    uname_output = execute_with_output ('uname', ['-r'])
+    uname_output.rstrip () #Single line output still contains trailing newline
     
-    return extractKernelVersionString (unameOutput)
+    return extract_kernel_version (uname_output)
             
-def getInstalledKernels (packageManager: str) -> list:
+def get_installed_kernels (package_manager: str) -> list:
     '''
         Returns a list of the currently installed kernels (list <str>).
         Calls a command depending on the package manager to list all installed kernels.
         
-        packageManager (str): The system package manager fetched by getPackageManager ()
+        packageManager (str): The system package manager fetched by get_package_manager ()
     '''
         
-    if packageManager == 'rpm':
-        output = executeCommandWithOutput ('rpm', ['-qa', 'kernel'])
+    if package_manager == 'rpm':
+        output = execute_with_output ('rpm', ['-qa', 'kernel'])
         
-    elif packageManager == 'dpkg':
-        output = executeCommandWithOutput ('dpkg', ['--list', '|', 'grep', 'linux-image'])
+    elif package_manager == 'dpkg':
+        output = execute_with_output ('dpkg', ['--list', '|', 'grep', 'linux-image'])
         
     elif packageManager == 'pacman':
-        output = executeCommandWithOutput ('pacman', ['-Q', '|', 'grep', 'linux'])
+        output = execute_with_output ('pacman', ['-Q', '|', 'grep', 'linux'])
 
     output = output.rstrip ()
+    output_lines = output.split ('\n')
     
-    outputLines = output.split ('\n')
-    
-    kernelVersions = []
-    
-    for line in outputLines:
-        versionString = extractKernelVersionString (line)
+    kernel_versions = []
+    for line in output_lines:
+        version_string = extract_kernel_version (line)
             
-        kernelVersions.append (versionString)
+        kernel_versions.append (version_string)
         
-    return kernelVersions
+    return kernel_versions
         
-def getNewKernels (currentKernel: str, installedKernels: list) -> list:
+def get_new_kernels (current_kernel: str, installed_kernels: list) -> list:
     '''
         Returns a list of all kernels that are newer than the currently booted one or exits if no kernels are newer than the currently booted one (list <str>)
         
-        currentKernel (str): The currently booted kernel
-        installedKernels (list <str>): A list of all the currently installed kernels
+        current_kernel (str): The currently booted kernel
+        installed_kernels (list <str>): A list of all the currently installed kernels
     '''
         
-    newKernels = []
+    new_kernels = []
     
     #Compare kernels and add them to the newKernels list if they are newer than the currently booted one
-    for installedKernel in installedKernels:        
-        if compareKernels (installedKernel, currentKernel) == 1:
-            newKernels.append (installedKernel)
+    for installed_kernel in installed_kernels:        
+        if compare_kernels (installed_kernel, current_kernel) == 1:
+            new_kernels.append (installed_kernel)
     
-    return newKernels
+    return new_kernels
     
-def signNewKernels (newKernels: list, moduleEntries: list, privateKeyPath: str, publicKeyPath: str):
+def sign_new_kernels (new_kernels: list, module_entries: list, private_key_path: str, public_key_path: str):
     '''
-        Signs the nvidia kernel modules for every new kernel by calling signKernel () on each (void).
+        Signs the nvidia kernel modules for every new kernel by calling sign_kernel () on each (void).
         
         newKernels (list <str>): A list of the new kernels to sign
-        privateKeyPath (str): The path to the private key file to sign with
-        publicKeyPath (str): The path to the public key file to sign with
+        private_key_path (str): The path to the private key file to sign with
+        public_key_path (str): The path to the public key file to sign with
     '''
     
-    for newKernel in newKernels:
-        signKernel (newKernel, moduleEntries, privateKeyPath, publicKeyPath)
+    for new_kernel in new_kernels:
+        sign_kernel (new_kernel, module_entries, private_key_path, public_key_path)
     
 def main ():
     '''
@@ -456,9 +444,9 @@ def main ():
     print ()
     
     parser = argparse.ArgumentParser (description = 'Nvidia Signing Script: A small script which signs Nvidia\'s kernel modules for any installed kernel newer than the currently booted one.')
-    parser.add_argument ('modulesFile', help = '(Mandatory) Your modules JSON file specifying the modules that you want to sign (see README for details)')
-    parser.add_argument ('privateKeyFile', help = '(Mandatory) Your private key file for signing the kernel modules (see README for details)')
-    parser.add_argument ('publicKeyFile', help = '(Mandatory) Your public key file for signing the kernel modules (see README for details)')
+    parser.add_argument ('modules_file', help = '(Mandatory) Your modules JSON file specifying the modules that you want to sign (see README for details)')
+    parser.add_argument ('private_key_file', help = '(Mandatory) Your private key file for signing the kernel modules (see README for details)')
+    parser.add_argument ('public_key_file', help = '(Mandatory) Your public key file for signing the kernel modules (see README for details)')
     parser.add_argument ('-k', '--kernels', type = str, nargs = '+', help = '(Optional) Sign the modules only for the provided kernels. Make sure to format them correctly (see uname -r output)')
     parser.add_argument ('-d', '--debug', help = '(Optional) Display extra print statements for debugging', action = 'store_true')
     args = parser.parse_args ()
@@ -466,65 +454,60 @@ def main ():
     global DEBUG 
     DEBUG = args.debug
     
-    moduleEntries = getModuleEntries (args.modulesFile)
+    module_entries = get_module_entries (args.modules_file)
     
-    print ('%s: Signing modules for: ' %__title__, end = '')
-    for moduleEntry in moduleEntries:
-        print (moduleEntry ['name'], end = ', ')
-    print ('\n')
+    print ('Signing modules for: ', end = '')
+    for module_entry in module_entries:
+        print (module_entry ['name'], end = ', ')
+    print ()
     
     #Manual mode (-k/--kernels is present)
     if args.kernels != None:
-        print ('%s: Running in manual mode' %__title__)
+        print ('Running in manual mode')
         print ()
-        print ('%s: Provided kernels: %s' %(__title__, args.kernels))
+        print ('Provided kernels: %s' %args.kernels)
         print ()
         
         for kernel in args.kernels:
-            kernelVersion = extractKernelVersionString (kernel) #Will exit if the argument is not a proper version string
+            kernel_version = extract_kernel_version (kernel) #Will exit if the argument is not a proper version string
             
-            print ('%s: Signing provided kernel: %s' %(__title__, kernelVersion))
+            print ('Signing provided kernel: %s' %kernel_version)
             print ()
             
-            signKernel (kernelVersion, moduleEntries, args.privateKeyFile, args.publicKeyFile)
+            sign_kernel (kernel_version, module_entries, args.private_key_file, args.public_key_file)
         
-        print ('%s: Kernel modules for provided kernel(s) have been signed' %__title__)
+        print ('Kernel modules for provided kernel(s) have been signed')
         print ()
         
     #Else automatic mode
     else:
-        print ('%s: Running in automatic (new kernels) mode' %__title__)
+        print ('Running in automatic (new kernels) mode')
         print ()
         
-        packageManager = getPackageManager ()
+        packageManager = get_package_manager ()
         
-        print ('%s: Found package manager: %s' %(__title__, packageManager))
-        print ()
+        print ('Found package manager: %s' %packageManager)
         
-        currentKernel = getCurrentKernel ()
+        currentKernel = get_current_kernel ()
 
-        print ('%s: Found current kernel: %s' %(__title__, currentKernel))
-        print ()
+        print ('Found current kernel: %s' %currentKernel)
         
-        installedKernels = getInstalledKernels (packageManager)
+        installedKernels = get_installed_kernels (packageManager)
         
-        print ('%s: Found installed kernels: %s' %(__title__, installedKernels))
-        print ()
+        print ('Found installed kernels: %s' %installedKernels)
         
-        newKernels = getNewKernels (currentKernel, installedKernels)
+        newKernels = get_new_kernels (currentKernel, installedKernels)
         
         if len (newKernels) > 0:
-            print ('%s: Found new kernels: %s' %(__title__, newKernels))
+            print ('Found new kernels: %s' %newKernels)
             print ()
             
-            signNewKernels (newKernels, moduleEntries, args.privateKeyFile, args.publicKeyFile)
+            sign_new_kernels (newKernels, module_entries, args.private_key_file, args.public_key_file)
         
-            print ('%s: Kernel modules for new kernels have been signed' %__title__)
-            print ()
+            print ('Kernel modules for new kernels have been signed')
         
         else:
-            print ('%s: No new kernels found' %__title__)
-            print ()
-    
+            print ('No new kernels found')
+            
 if __name__ == '__main__':
     main ()

@@ -11,9 +11,9 @@ This script signs the kernel modules with your personal key. Be sure to keep you
 This is a personal project that's now released.
 
 #Usage
-- modulesFile: Mandatory first positional argument. JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
-- privateKeyFile: Mandatory second positional argument. Your private key file for signing the modules (symlinks do not work for this arg).
-- publicKeyFile: Mandatory third positional argument. Your public key file for signing the modules (symlinks do not work for this arg).
+- modules_file: Mandatory first positional argument. JSON file that describes the modules to sign and the directory they are contained in. See below for the layout.
+- private_key_file: Mandatory second positional argument. Your private key file for signing the modules (symlinks do not work for this arg).
+- public_key_file: Mandatory third positional argument. Your public key file for signing the modules (symlinks do not work for this arg).
 - -k/--kernels: Manually sign the provided kernels. Make sure to provide the correct format (see uname -r).
 - -h: Show help.
 - -d/--debug: Display extra information for debugging
@@ -27,18 +27,18 @@ This is a personal project that's now released.
 JSON Modules File Layout:
 ```
 {
-    "moduleEntries": 
+    "module_entries": 
     [
         {
             "name": "Nvidia",
             "directory": "extra/nvidia/",
-            "moduleFiles": ["nvidia-drm.ko", "nvidia.ko", "nvidia-modeset.ko", "nvidia-uvm.ko"]
+            "module_files": ["nvidia-drm.ko", "nvidia.ko", "nvidia-modeset.ko", "nvidia-uvm.ko"]
         },
         
         {
             "name": "VirtualBox",
             "directory": "extra/VirtualBox/",
-            "moduleFiles": ["vboxdrv.ko", "vboxguest.ko", "vboxnetadp.ko", "vboxnetflt.ko", "vboxpci.ko", "vboxsf.ko", "vboxvideo.ko"]
+            "module_files": ["vboxdrv.ko", "vboxguest.ko", "vboxnetadp.ko", "vboxnetflt.ko", "vboxpci.ko", "vboxsf.ko", "vboxvideo.ko"]
         }
     ]
 }
@@ -49,7 +49,7 @@ Parameters
 - directory: The directory where the modules are contained. 
 This gets appended to: /usr/lib/modules/**KERNEL_VERSION_BEING_SIGNED**/
 For example my modules for Nvidia are located in: /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/nvidia
-- moduleFiles: List of the module files to sign
+- module_files: List of the module files to sign
 
 Notes
 - Make sure your format for this file is correct. Try: http://jsonlint.com and check this readme
@@ -84,7 +84,7 @@ Manual Mode (-k/--kernels)
 - I haven't had the time to boot any virtual machines and test other configurations (mine is Fedora, rpm). I also haven't installed any new kernel versions lately to test if the signing process works on a new one. Signing an existing kernel (already signed) works fine for me though.
 - I don't want to use external files to track state so the script will sign modules for any kernel newer than the current one even if they have already been signed. This has no ill effects on the modules though. Basically the script assumes that you will boot the new kernel at some point. You won't be able to boot (I get kicked into recovery mode after a timeout) if your current kernel has unsigned Nvidia modules (as long as you still have secure boot enabled) so the script assumes your current kernel modules are signed.
 - There is no way for me to register this script to run when the akmod modules are first built or when a kernel is installed without building packages for various package managers.
-- I found out the hard way that you can't use symlinks for your public or private key files so I added a note to the help for those argumants. The sign-file binary doesn't seem to accept a valid link to the files so I can't fix this.
+- I found out the hard way that you can't use symlinks for your public or private key files so I added a note to the help for those arguments. The sign-file binary doesn't seem to accept a valid link to the files so I can't fix this.
 
 #Downloading and Usage
 
@@ -101,10 +101,10 @@ Manual Mode (-k/--kernels)
 #Constants
 You might need to change these if you run into problems
 
-executeCommandWithOutput ():
+execute_with_output ():
 - ENCODING: The encoding used to decode the command output. Default: utf-8
 
-signKernel ():
+sign_kernel ():
 - SIGN_BINARY_PATH: Path to the sign-file binary for the current kernel. Default: /usr/src/kernels/**KERNEL_VERSION_BEING_SIGNED**/scripts/sign-file
 - BASE_MODULES_PATH: The path that gets prepended to the modules path provided by each entry in the JSON file. Default: /usr/lib/modules/**KERNEL_VERSION_BEING_SIGNED**/
   Ex: /usr/lib/modules/4.7.2-201.fc24.x86_64/ + extra/Nvidia = /usr/lib/modules/4.7.2-201.fc24.x86_64/extra/Nvidia
